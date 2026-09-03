@@ -32,7 +32,7 @@ insert into public.companies (organization_id, name) values (:'other_organizatio
 
 set local role anon;
 select set_config('request.jwt.claim.sub', '', true);
-select is_empty($$ select id from public.companies $$, 'anonymous user cannot read companies');
+select throws_ok($$ select id from public.companies $$, '42501', 'permission denied for table companies', 'anonymous user cannot read companies');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000002', true);
