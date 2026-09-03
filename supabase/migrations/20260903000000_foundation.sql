@@ -35,10 +35,20 @@ returns boolean language sql stable security definer set search_path = '' as $$
   );
 $$;
 
+create or replace function public.is_organization_owner(requested_organization_id uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.organization_members
+    where organization_id = requested_organization_id and user_id = auth.uid() and role = 'owner'
+  );
+$$;
+
 revoke all on function public.is_organization_member(uuid) from public;
 revoke all on function public.is_organization_admin(uuid) from public;
+revoke all on function public.is_organization_owner(uuid) from public;
 grant execute on function public.is_organization_member(uuid) to authenticated;
 grant execute on function public.is_organization_admin(uuid) to authenticated;
+grant execute on function public.is_organization_owner(uuid) to authenticated;
 
 create or replace function public.create_organization(organization_name text)
 returns uuid language plpgsql security definer set search_path = '' as $$
@@ -142,6 +152,24 @@ create index events_organization_company_idx on public.events(organization_id, c
 create index sales_opportunities_organization_company_idx on public.sales_opportunities(organization_id, company_id);
 create index scoring_rules_organization_id_idx on public.scoring_rules(organization_id);
 
+create or replace function public.protect_last_organization_owner()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if old.role = 'owner' and (tg_op = 'DELETE' or new.role <> 'owner') then
+    perform 1 from public.organization_members
+    where organization_id = old.organization_id and role = 'owner' and user_id <> old.user_id
+    limit 1;
+    if not found then raise exception 'organization must retain at least one owner' using errcode = '23514'; end if;
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end;
+$$;
+
+create trigger organization_members_protect_last_owner
+before update of role or delete on public.organization_members
+for each row execute function public.protect_last_organization_owner();
+
 create or replace function public.enforce_company_organization_match()
 returns trigger language plpgsql set search_path = '' as $$
 begin
@@ -169,9 +197,24 @@ alter table public.scoring_rules enable row level security;
 create policy organizations_select_member on public.organizations for select to authenticated using (public.is_organization_member(id));
 create policy organizations_update_admin on public.organizations for update to authenticated using (public.is_organization_admin(id)) with check (public.is_organization_admin(id));
 create policy organization_members_select_member on public.organization_members for select to authenticated using (public.is_organization_member(organization_id));
-create policy organization_members_insert_admin on public.organization_members for insert to authenticated with check (public.is_organization_admin(organization_id));
-create policy organization_members_update_admin on public.organization_members for update to authenticated using (public.is_organization_admin(organization_id)) with check (public.is_organization_admin(organization_id));
-create policy organization_members_delete_admin on public.organization_members for delete to authenticated using (public.is_organization_admin(organization_id) and user_id <> auth.uid());
+create policy organization_members_insert_manager on public.organization_members for insert to authenticated with check (
+  public.is_organization_owner(organization_id)
+  or (public.is_organization_admin(organization_id) and role <> 'owner')
+);
+create policy organization_members_update_manager on public.organization_members for update to authenticated using (
+  public.is_organization_owner(organization_id)
+  or (public.is_organization_admin(organization_id) and role <> 'owner')
+) with check (
+  public.is_organization_owner(organization_id)
+  or (public.is_organization_admin(organization_id) and role <> 'owner')
+);
+create policy organization_members_delete_manager on public.organization_members for delete to authenticated using (
+  user_id <> auth.uid()
+  and (
+    public.is_organization_owner(organization_id)
+    or (public.is_organization_admin(organization_id) and role <> 'owner')
+  )
+);
 
 create policy companies_member_all on public.companies for all to authenticated using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
 create policy contacts_member_all on public.contacts for all to authenticated using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));

@@ -14,6 +14,7 @@
 | --- | --- |
 | 未認証アクセス | `auth.getUser()` とauthenticated限定RLS |
 | IDOR | サーバーmembership照合、organization_id RLS |
+| adminによるowner奪取 | owner専用RLS条件、最後のowner保護トリガー、実DB RBACテスト |
 | 組織をまたぐ外部キー | company/organization整合トリガー |
 | Service Role漏洩 | `server-only`、公開env名禁止、CIスキャン |
 | PIIのAI・ログ流出 | contacts分離、分析allowlist、境界テスト、ログ禁止 |
@@ -25,6 +26,7 @@
 
 - [ ] 新規テーブルにorganization_id、RLS、policyがある
 - [ ] 認証と組織認可を迂回する経路がない
+- [ ] adminがownerを付与・昇格・降格・削除できず、最後のownerが維持される
 - [ ] 入力をサーバー側で検証している
 - [ ] 秘密情報がclient bundle・ログ・fixtureにない
 - [ ] contacts/PIIが分析・AI入力へ渡らない
@@ -32,3 +34,7 @@
 - [ ] typecheck、lint、test、build、secret scan、npm auditが成功する
 
 Supabase Dashboardで本番URL、Auth provider、バックアップ、監査ログ保持、秘密鍵ローテーションを環境ごとに設定する。Service Roleを利用する管理ジョブは個別レビューし、最小権限のサーバー環境に限定する。
+
+## 実DB検証
+
+`supabase/tests/database/rls.test.sql` は公式Supabaseローカルスタック上で実行する。テスト用の架空ユーザーだけを作成し、未認証アクセス、他組織アクセス、正当な所属アクセス、admin/ownerの権限境界を検証後にtransactionをrollbackする。CIはremote projectや本番データへ接続しない。

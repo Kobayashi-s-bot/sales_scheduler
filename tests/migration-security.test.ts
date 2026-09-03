@@ -9,4 +9,12 @@ describe("RLS migration contract", () => {
   it.each(["companies", "contacts", "sales_history", "events", "sales_opportunities", "scoring_rules"])("enforces membership on %s", (table) => { expect(sql).toMatch(new RegExp(`create policy ${table}_[\\s\\S]*?is_organization_member\\(organization_id\\)`)); });
   it("uses invoker security for analysis view", () => { expect(sql).toContain("with (security_invoker = true)"); });
   it("denies anonymous table access", () => { expect(sql).toContain("revoke all on all tables in schema public from anon"); });
+  it("reserves owner role management for owners", () => {
+    expect(sql).toContain("is_organization_owner(organization_id)");
+    expect(sql).toContain("is_organization_admin(organization_id) and role <> 'owner'");
+  });
+  it("protects the final owner with a database trigger", () => {
+    expect(sql).toContain("create trigger organization_members_protect_last_owner");
+    expect(sql).toContain("organization must retain at least one owner");
+  });
 });

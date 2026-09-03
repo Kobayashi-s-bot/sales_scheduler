@@ -15,11 +15,11 @@
 1. Node.js 20.9以上とDocker、Supabase CLIを用意します。
 2. `npm ci` を実行します。
 3. `.env.example` を `.env.local` にコピーし、SupabaseのURLとanon keyを設定します。
-4. `npx supabase start`、`npx supabase db reset` でローカルDBへMigrationを適用します。
+4. `npx supabase start`、`npx supabase db reset`、`npx supabase test db` でローカルDBへMigrationを適用し、実DBのRLS/RBACを検証します。
 5. `npm run dev` で `http://localhost:3000` を開きます。
 
 ## 検証
 
-`npm run typecheck`、`npm run lint`、`npm test`、`npm run check:secrets`、`npm run build`、`npm audit --audit-level=high` を実行します。
+`npm run typecheck`、`npm run lint`、`npm test`、`npm run check:secrets`、`npm run build`、`npm audit --audit-level=high` を実行します。CIでは公式SupabaseローカルスタックにMigrationを適用し、`supabase/tests/database/rls.test.sql` で未認証拒否、組織間IDOR拒否、正当な組織アクセス、owner保護も検証します。
 
 詳細は [アーキテクチャ](docs/architecture.md)、[DB設計](docs/database.md)、[セキュリティ](docs/security.md) を参照してください。

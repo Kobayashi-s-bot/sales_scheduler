@@ -11,4 +11,11 @@
 
 子テーブルの `company_id` と `organization_id` の一致はDBトリガーで保証し、組織をまたぐ関連付けを拒否する。全対象テーブルでRLSを有効にし、membership関数を使ったポリシーを設定する。`analysis_companies` は `security_invoker` viewでcompaniesのRLSを継承する。
 
-初回Migrationは `supabase/migrations/20260903000000_foundation.sql`。ローカルSupabaseで `npx supabase db reset` により適用する。
+## メンバー権限
+
+- ownerはownerを含むメンバーの追加・役割変更・削除を行える。
+- adminはowner以外のメンバーだけを管理できる。ownerの付与、ownerへの昇格、ownerの降格・削除はRLSで拒否する。
+- memberはメンバー構成を参照できるが変更できない。
+- 最後のownerの降格・削除は `organization_members_protect_last_owner` トリガーが、RLSを迂回する管理経路を含めて拒否する。
+
+初回Migrationは `supabase/migrations/20260903000000_foundation.sql`。ローカルSupabaseで `npx supabase db reset` により適用し、`npx supabase test db` で実RLS/RBACテストを実行する。
