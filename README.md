@@ -1,6 +1,6 @@
 # 営業カレンダー
 
-既存顧客への再アプローチ時期と、新規営業候補の判断を支援するWeb/PWAの基盤です。現在の実装範囲は [Issue #2](https://github.com/Kobayashi-s-bot/sales_scheduler/issues/2)（親仕様: [Issue #1](https://github.com/Kobayashi-s-bot/sales_scheduler/issues/1)）で、認証・組織分離・DB・セキュリティまでです。スコアリングやWeb収集は未実装です。
+既存顧客への再アプローチ時期と、新規営業候補の判断を支援するWeb/PWAです。[Issue #2](https://github.com/Kobayashi-s-bot/sales_scheduler/issues/2)の認証・組織分離基盤に加え、[Issue #3](https://github.com/Kobayashi-s-bot/sales_scheduler/issues/3)で既存顧客の営業タイミング推奨を実装しています。新規企業探索とWeb収集は未実装です。
 
 ## 技術構成
 
@@ -23,3 +23,12 @@
 `npm run typecheck`、`npm run lint`、`npm test`、`npm run check:secrets`、`npm run build`、`npm audit --audit-level=high` を実行します。CIでは公式SupabaseローカルスタックにMigrationを適用し、`supabase/tests/database/rls.test.sql` で未認証拒否、組織間IDOR拒否、正当な組織アクセス、owner保護も検証します。
 
 詳細は [アーキテクチャ](docs/architecture.md)、[DB設計](docs/database.md)、[セキュリティ](docs/security.md) を参照してください。
+
+## 営業タイミング推奨
+
+- `event_timing` ルールの `eventType`、`offsetDays`、`cooldownDays` をDBで変更可能
+- イベント日と直近営業活動から通常ロジックだけで推奨日を計算
+- 推奨理由、イベント・ルールID、根拠URLをPIIなしで保存
+- `/companies/[companyId]?organizationId=...` で企業詳細、`/calendar?organizationId=...&month=YYYY-MM` で月別表示
+
+イベント、過去案件・アプローチ履歴、タイミングルールの登録APIは、それぞれ `/api/events`、`/api/sales-history`、`/api/timing-rules` です。すべて認証と組織所属確認が必要です。

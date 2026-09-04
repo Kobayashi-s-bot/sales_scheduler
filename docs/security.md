@@ -18,6 +18,8 @@
 | 組織をまたぐ外部キー | company/organization整合トリガー |
 | Service Role漏洩 | `server-only`、公開env名禁止、CIスキャン |
 | PIIのAI・ログ流出 | contacts分離、分析allowlist、境界テスト、ログ禁止 |
+| 推奨根拠へのPII混入 | company/event/rule/history IDと公開URLのみをallowlist保存、contacts非参照 |
+| memberによるルール改ざん | scoring_rulesの変更RLSをowner/adminに限定、JSON設定をDB制約でも検証 |
 | 不正入力 | strict Zod schemaとDB制約 |
 | 内部情報露出 | 固定エラーレスポンス |
 | 依存脆弱性 | lockfile、npm audit |
@@ -30,6 +32,7 @@
 - [ ] 入力をサーバー側で検証している
 - [ ] 秘密情報がclient bundle・ログ・fixtureにない
 - [ ] contacts/PIIが分析・AI入力へ渡らない
+- [ ] 営業推奨のevidence・reasonへ担当者情報を含めない
 - [ ] エラーが内部情報を返さない
 - [ ] typecheck、lint、test、build、secret scan、npm auditが成功する
 
@@ -38,3 +41,5 @@ Supabase Dashboardで本番URL、Auth provider、バックアップ、監査ロ�
 ## 実DB検証
 
 `supabase/tests/database/rls.test.sql` は公式Supabaseローカルスタック上で実行する。テスト用の架空ユーザーだけを作成し、未認証アクセス、他組織アクセス、正当な所属アクセス、admin/ownerの権限境界を検証後にtransactionをrollbackする。CIはremote projectや本番データへ接続しない。
+
+`recommendations_rls.test.sql` は推奨テーブルの未認証・他組織拒否、正当な組織アクセス、重複イベント、外部キー/組織整合性を実DBで検証する。推奨エンジンはcontactsを入力型にもqueryにも持たず、AIや外部サービスへデータを送らない。
