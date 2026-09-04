@@ -32,6 +32,7 @@ describe("sales recommendation migration contract", () => {
   it("rejects duplicate events and cross-organization sources", () => {
     expect(timingSql).toContain("unique nulls not distinct");
     expect(timingSql).toContain("event does not belong to company and organization");
+    expect(timingSql).toContain("using errcode = '23514'");
   });
   it("limits timing-rule writes to organization admins", () => {
     expect(timingSql).toContain("drop policy scoring_rules_member_all");

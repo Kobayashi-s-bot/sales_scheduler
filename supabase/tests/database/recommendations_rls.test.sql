@@ -39,7 +39,7 @@ select results_eq(format('update public.scoring_rules set configuration = %L whe
 
 reset role;
 select throws_ok(format('insert into public.scoring_rules (organization_id, name, rule_type, configuration) values (%L,%L,%L,%L)', :'timing_organization_id', 'Invalid timing rule', 'event_timing', '{"eventType":"funding","offsetDays":1.5}'), '23514', null, 'database rejects non-integer timing rule configuration');
-select throws_ok(format('insert into public.sales_recommendations (organization_id, company_id, source_event_id, scoring_rule_id, recommended_on, reason) values (%L,%L,%L,%L,%L,%L)', :'timing_organization_id', :'timing_company_id', gen_random_uuid(), :'timing_rule_id', '2026-09-16', 'Invalid event'), '23503', null, 'unknown source event is rejected');
+select throws_ok(format('insert into public.sales_recommendations (organization_id, company_id, source_event_id, scoring_rule_id, recommended_on, reason) values (%L,%L,%L,%L,%L,%L)', :'timing_organization_id', :'timing_company_id', gen_random_uuid(), :'timing_rule_id', '2026-09-16', 'Invalid event'), '23514', null, 'unknown source event is rejected');
 select is((select count(*) from public.sales_recommendations), 1::bigint, 'rejected writes leave original recommendation intact');
 
 select * from finish();
