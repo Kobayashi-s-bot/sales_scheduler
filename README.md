@@ -26,7 +26,9 @@
 
 ## 営業タイミング推奨
 
-- `event_timing` ルールの `eventType`、`offsetDays`、`cooldownDays` をDBで変更可能
+営業推奨日は `max(イベント日 − leadDays, 前回営業日 + cooldownDays)`。営業履歴がない場合はイベント日からleadDaysを引きます。例：2027-12-25のクリスマス施策にleadDays=120を設定すると、2027-08-27から営業を推奨します。cooldownがイベント基準日を超える場合は、理由に営業間隔の調整を表示します。
+
+- `event_timing` ルールの `eventType`、`leadDays`、`cooldownDays` をDBで変更可能
 - イベント日と直近営業活動から通常ロジックだけで推奨日を計算
 - 推奨理由、イベント・ルールID、根拠URLをPIIなしで保存
 - `/companies/[companyId]?organizationId=...` で企業詳細、`/calendar?organizationId=...&month=YYYY-MM` で月別表示

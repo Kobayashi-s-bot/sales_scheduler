@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const timingRuleConfigurationSchema = z.object({
   eventType: z.string().trim().min(1).max(100),
-  offsetDays: z.number().int().min(0).max(3650),
+  leadDays: z.number().int().min(0).max(3650),
   cooldownDays: z.number().int().min(0).max(3650).default(0),
 }).strict();
 
@@ -19,7 +19,7 @@ export type RecommendationDraft = {
   scoringRuleId: string;
   recommendedOn: string;
   reason: string;
-  evidence: { eventId: string; eventType: string; eventDate: string; sourceUrl: string | null; ruleId: string; offsetDays: number; latestActivityId: string | null; cooldownDays: number };
+  evidence: { eventId: string; eventType: string; eventDate: string; sourceUrl: string | null; ruleId: string; leadDays: number; latestActivityId: string | null; cooldownDays: number };
 };
 
 function parseDateOnly(value: string) {
@@ -47,7 +47,7 @@ export function calculateRecommendations(events: TimingEvent[], rules: TimingRul
       if (!rule.enabled) continue;
       const configuration = timingRuleConfigurationSchema.parse(rule.configuration);
       if (configuration.eventType !== event.eventType) continue;
-      const eventCandidate = addCalendarDays(event.occurredOn, configuration.offsetDays);
+      const eventCandidate = addCalendarDays(event.occurredOn, -configuration.leadDays);
       const activityCandidate = latestActivity ? addCalendarDays(latestActivity.occurredOn, configuration.cooldownDays) : null;
       const recommendedOn = activityCandidate && activityCandidate > eventCandidate ? activityCandidate : eventCandidate;
       const activityExplanation = activityCandidate && activityCandidate > eventCandidate
@@ -57,8 +57,8 @@ export function calculateRecommendations(events: TimingEvent[], rules: TimingRul
         sourceEventId: event.id,
         scoringRuleId: rule.id,
         recommendedOn,
-        reason: `「${event.title}」（${event.occurredOn}）を起点に、ルール「${rule.name}」の${configuration.offsetDays}日後を適用${activityExplanation}`,
-        evidence: { eventId: event.id, eventType: event.eventType, eventDate: event.occurredOn, sourceUrl: event.sourceUrl, ruleId: rule.id, offsetDays: configuration.offsetDays, latestActivityId: latestActivity?.id ?? null, cooldownDays: configuration.cooldownDays },
+        reason: `「${event.title}」（${event.occurredOn}）を起点に、ルール「${rule.name}」の${configuration.leadDays}日前を適用${activityExplanation}`,
+        evidence: { eventId: event.id, eventType: event.eventType, eventDate: event.occurredOn, sourceUrl: event.sourceUrl, ruleId: rule.id, leadDays: configuration.leadDays, latestActivityId: latestActivity?.id ?? null, cooldownDays: configuration.cooldownDays },
       });
     }
   }

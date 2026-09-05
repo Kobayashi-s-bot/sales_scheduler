@@ -8,11 +8,13 @@ alter table public.events
 
 alter table public.scoring_rules add constraint scoring_rules_event_timing_configuration check (
   rule_type <> 'event_timing'
-  or (
+  or coalesce((
+    not configuration ? 'offsetDays'
+    and
     jsonb_typeof(configuration -> 'eventType') = 'string'
-    and jsonb_typeof(configuration -> 'offsetDays') = 'number'
-    and (configuration ->> 'offsetDays')::numeric between 0 and 3650
-    and (configuration ->> 'offsetDays')::numeric = trunc((configuration ->> 'offsetDays')::numeric)
+    and jsonb_typeof(configuration -> 'leadDays') = 'number'
+    and (configuration ->> 'leadDays')::numeric between 0 and 3650
+    and (configuration ->> 'leadDays')::numeric = trunc((configuration ->> 'leadDays')::numeric)
     and (
       not configuration ? 'cooldownDays'
       or (
@@ -21,7 +23,7 @@ alter table public.scoring_rules add constraint scoring_rules_event_timing_confi
         and (configuration ->> 'cooldownDays')::numeric = trunc((configuration ->> 'cooldownDays')::numeric)
       )
     )
-  )
+  ), false)
 );
 
 drop policy scoring_rules_member_all on public.scoring_rules;

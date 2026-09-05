@@ -8,4 +8,4 @@ Issue #1を親仕様とする。Issue #2のアプリ基盤、DB、認証・認�
 
 Service Roleクライアントは `server-only` の独立モジュールに閉じ込め、通常のユーザーリクエストでは利用しない。
 
-営業タイミングエンジンは `src/lib/recommendations/engine.ts` の純粋な通常ロジックである。イベント日へ設定済みoffsetを加算し、直近営業活動がある場合はcooldownを確保する。結果は理由とPII-freeな根拠だけを `sales_recommendations` に保存する。イベントや履歴の登録、ルール変更時にサーバーで再計算し、AIや外部APIは呼び出さない。
+営業タイミングエンジンは `src/lib/recommendations/engine.ts` の純粋な通常ロジックである。イベント日から設定済みleadDaysを減算し、直近営業活動がある場合はcooldownを確保する。結果は理由とPII-freeな根拠だけを `sales_recommendations` に保存する。イベントや履歴の登録、ルール変更時にサーバーで再計算し、AIや外部APIは呼び出さない。

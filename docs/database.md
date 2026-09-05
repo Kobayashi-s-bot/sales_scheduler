@@ -26,7 +26,11 @@ Issue #3のMigrationは `20260904000000_sales_timing_engine.sql`。イベント�
 `scoring_rules.rule_type = 'event_timing'` のconfigurationは次を使う。
 
 - `eventType`: 対象イベント種別
-- `offsetDays`: イベント日から営業開始までの日数
+- `leadDays`: イベント開催の何日前から営業するか（0〜3650の整数）
 - `cooldownDays`: 直近営業活動から確保する最小日数
+
+`POST /api/timing-rules` のconfiguration例は `{"eventType":"christmas","leadDays":120,"cooldownDays":14}`。理由・evidenceもleadDaysを記録します。旧offsetDaysはAPI・DBとも拒否します。
+
+PR #8は未マージのため、Issue #3のMigrationをleadDays形式へ更新しています。旧PR版を適用した使い捨ての開発DBは `supabase db reset` で再構築してください（データは消去されます）。保持するデータがある環境ではresetせず、ルールのleadDays設定と推奨の再計算を含む移行を別途準備してください。
 
 event timing configurationはDB制約でも型と0〜3650日の範囲を検証する。ルールの閲覧は組織memberに許可し、追加・変更・削除はowner/adminだけに限定する。
