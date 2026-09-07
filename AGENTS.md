@@ -18,6 +18,16 @@
 - 決定論的処理（日付、score、重複排除、権限）は通常コード、AIは文章理解・分類・要約に限定する。
 - 既存挙動を変える場合は、その挙動を固定するテストを追加する。
 
+## 推論コスト
+実際のreasoning設定をこのファイルが強制できない場合でも、作業の思考深度は以下を目安に必要最小限とする。
+
+- Low相当：文言/docs、単純な型修正、既存パターンに沿う小変更、明確なテスト追加、lint修正。
+- Medium相当（原則）：通常のIssue実装、API/UI/CRUD、既存ロジック拡張、一般的なバグ修正、複数ファイル変更。
+- High相当：DB schema/Migration、RLS/RBAC/Auth、security、複数層にまたがる設計変更、再現困難なbug、推薦/scoreロジックの設計変更、data破壊や互換性リスク。
+- Extra High相当：原則使わない。Highで解決できず、重大なsecurity/data integrity/architecture問題がある場合のみ。
+
+推論量を上げる前に、既存コード・既存テスト・Issue内の情報だけで解決できないか確認する。単純作業でHigh以上を使わない。
+
 ## セキュリティ
 - `contacts`等のPIIをAIへ渡さない。担当者名/電話/メールを外部AIへ送信しない。
 - Secrets/API Key/Service Role Keyをclient、ログ、Repositoryへ出さない。
