@@ -1,6 +1,6 @@
 # 営業カレンダー
 
-既存顧客への再アプローチ時期と、新規営業候補の判断を支援するWeb/PWAです。[Issue #2](https://github.com/Kobayashi-s-bot/sales_scheduler/issues/2)の認証・組織分離基盤に加え、[Issue #3](https://github.com/Kobayashi-s-bot/sales_scheduler/issues/3)で既存顧客の営業タイミング推奨を実装しています。新規企業探索とWeb収集は未実装です。
+既存顧客への再アプローチ時期と、新規営業候補の判断を支援するWeb/PWAです。[Issue #2](https://github.com/Kobayashi-s-bot/sales_scheduler/issues/2)の認証・組織分離基盤、[Issue #3](https://github.com/Kobayashi-s-bot/sales_scheduler/issues/3)の営業タイミング推奨に加え、Issue #4で公開情報収集基盤を実装しています。新規候補企業のスコアリングは未実装です。
 
 ## 技術構成
 
@@ -34,3 +34,13 @@
 - `/companies/[companyId]?organizationId=...` で企業詳細、`/calendar?organizationId=...&month=YYYY-MM` で月別表示
 
 イベント、過去案件・アプローチ履歴、タイミングルールの登録APIは、それぞれ `/api/events`、`/api/sales-history`、`/api/timing-rules` です。すべて認証と組織所属確認が必要です。
+
+## 公開情報収集
+
+`POST /api/collection/run` は認証・組織所属確認後、企業に紐づくRSSまたはHTMLを取得します。公開HTTPS URLだけを許可し、robots.txt、ホスト単位のアクセス間隔、取得失敗時の指数バックオフに配慮します。取得記事はURLで重複排除し、SHA-256 content hashで同一URLの更新を検知します。
+
+```json
+{"organizationId":"...","companyId":"...","sourceUrl":"https://example.com/feed.xml","sourceType":"rss","refreshIntervalMinutes":1440}
+```
+
+`published_at`（記事公開日）とイベント日を別々に保持します。AI実装は`EventAnalyzer` interfaceの外側へ差し替え可能で、入力は公開記事のURL・題名・本文・公開日時だけです。contactsの担当者情報は参照しません。有料企業DBや有料APIには依存しません。

@@ -19,6 +19,9 @@
 | Service Role漏洩 | `server-only`、公開env名禁止、CIスキャン |
 | PIIのAI・ログ流出 | contacts分離、分析allowlist、境界テスト、ログ禁止 |
 | 推奨根拠へのPII混入 | company/event/rule/history IDと公開URLのみをallowlist保存、contacts非参照 |
+| 収集URLによるSSRF | 公開HTTPSのみ、private/loopback host・資格情報・非標準portを拒否 |
+| 過剰クロール・規約違反 | robots.txt確認、source別間隔、host rate limiter、失敗時backoff |
+| 公開記事からAIへの不要情報送信 | EventAnalyzer入力をURL・題名・本文・公開日時に固定しcontactsを参照しない |
 | memberによるルール改ざん | scoring_rulesの変更RLSをowner/adminに限定、JSON設定をDB制約でも検証 |
 | 不正入力 | strict Zod schemaとDB制約 |
 | 内部情報露出 | 固定エラーレスポンス |
@@ -33,6 +36,7 @@
 - [ ] 秘密情報がclient bundle・ログ・fixtureにない
 - [ ] contacts/PIIが分析・AI入力へ渡らない
 - [ ] 営業推奨のevidence・reasonへ担当者情報を含めない
+- [ ] 収集先が公開HTTPSで、robots.txtと再取得間隔を尊重している
 - [ ] エラーが内部情報を返さない
 - [ ] typecheck、lint、test、build、secret scan、npm auditが成功する
 
