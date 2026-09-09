@@ -2,6 +2,8 @@
 
 Issue #1を親仕様とする。Issue #2のアプリ基盤、DB、認証・認可、セキュリティ境界の上に、Issue #3では既存顧客の営業タイミング計算・企業詳細・月別カレンダーだけを追加する。新規候補企業の探索・スコアリング、公開情報収集は後続Issueの責務とする。
 
+Issue #11の先行利用版は、Server Componentで認証・組織所属を確認してから必要列だけを取得し、Client Componentは入力フォームとSupabase Authの操作に限定する。Proxyの未ログインredirectはUX上の早期判定であり、認可の根拠には使わない。更新Route HandlerとPostgreSQL RLSを最終境界とする。
+
 リクエストはNext.js Route HandlerでZod検証後、Supabase Authの `getUser()` でサーバー検証し、対象organizationへの所属を確認する。その後もユーザーJWT付きクライアントでDBへ接続し、PostgreSQL RLSを最終防御にする。
 
 `contacts` はPII専用テーブルである。分析層は `analysis_companies` view と `src/lib/analysis/company-context.ts` のallowlistだけを利用し、contactsへの依存を持たない。AI連携を将来追加する際もこの境界を越えてはならない。

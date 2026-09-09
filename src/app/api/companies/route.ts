@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   try {
     const input = companyInputSchema.parse(await request.json());
     const { supabase } = await requireOrganizationMembership(input.organizationId);
-    const { data, error } = await supabase.from("companies").insert({ organization_id: input.organizationId, name: input.name, website_url: input.websiteUrl ?? null, industry: input.industry ?? null }).select("id,name,website_url,industry,created_at").single();
+    const { data, error } = await supabase.from("companies").insert({ organization_id: input.organizationId, name: input.name, website_url: input.websiteUrl || null, industry: input.industry || null, description: input.description || null }).select("id,name,website_url,industry,description,created_at").single();
     if (error) throw error;
     return Response.json({ data }, { status: 201 });
   } catch (error) { return safeErrorResponse(error); }

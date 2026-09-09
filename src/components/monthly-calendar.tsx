@@ -1,6 +1,7 @@
+import Link from "next/link";
 type CalendarItem = { id: string; recommended_on: string; reason: string; companies: { id: string; name: string } | null };
 
-export function MonthlyCalendar({ month, items }: { month: string; items: CalendarItem[] }) {
+export function MonthlyCalendar({ month, items, organizationId }: { month: string; items: CalendarItem[]; organizationId?: string }) {
   const [year, monthNumber] = month.split("-").map(Number);
   const days = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
   const byDay = new Map<number, CalendarItem[]>();
@@ -14,7 +15,7 @@ export function MonthlyCalendar({ month, items }: { month: string; items: Calend
         <article key={day} className="min-h-28 rounded-md border bg-white p-3">
           <h2 className="text-sm font-semibold">{day}日</h2>
           <ul className="mt-2 space-y-2">
-            {(byDay.get(day) ?? []).map((item) => <li key={item.id} className="rounded bg-teal-50 p-2 text-xs"><span className="font-semibold">{item.companies?.name ?? "企業"}</span><br />{item.reason}</li>)}
+            {(byDay.get(day) ?? []).map((item) => <li key={item.id} className="rounded bg-teal-50 p-2 text-xs">{item.companies && organizationId ? <Link className="font-semibold underline" href={`/companies/${item.companies.id}?organizationId=${organizationId}`}>{item.companies.name}</Link> : <span className="font-semibold">{item.companies?.name ?? "企業"}</span>}<br />{item.reason}</li>)}
           </ul>
         </article>
       ))}

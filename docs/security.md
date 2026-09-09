@@ -20,6 +20,8 @@
 | PIIのAI・ログ流出 | contacts分離、分析allowlist、境界テスト、ログ禁止 |
 | 推奨根拠へのPII混入 | company/event/rule/history IDと公開URLのみをallowlist保存、contacts非参照 |
 | memberによるルール改ざん | scoring_rulesの変更RLSをowner/adminに限定、JSON設定をDB制約でも検証 |
+| organizationId書き換えによるIDOR | Server Component/Route Handlerでmembership確認し、queryもorganization/company/idで複合絞り込み |
+| 公開環境から本番秘密情報が露出 | browserはanon keyのみ、Service Roleはserver-onlyかつ現行UIでは未使用 |
 | 不正入力 | strict Zod schemaとDB制約 |
 | 内部情報露出 | 固定エラーレスポンス |
 | 依存脆弱性 | lockfile、npm audit |
@@ -33,6 +35,8 @@
 - [ ] 秘密情報がclient bundle・ログ・fixtureにない
 - [ ] contacts/PIIが分析・AI入力へ渡らない
 - [ ] 営業推奨のevidence・reasonへ担当者情報を含めない
+- [ ] 企業・担当者の表示/更新queryがorganizationIdで絞られている
+- [ ] Preview環境を本番Supabaseへ接続していない
 - [ ] エラーが内部情報を返さない
 - [ ] typecheck、lint、test、build、secret scan、npm auditが成功する
 
