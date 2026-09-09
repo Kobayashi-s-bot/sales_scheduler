@@ -34,3 +34,9 @@
 - `/companies/[companyId]?organizationId=...` で企業詳細、`/calendar?organizationId=...&month=YYYY-MM` で月別表示
 
 イベント、過去案件・アプローチ履歴、タイミングルールの登録APIは、それぞれ `/api/events`、`/api/sales-history`、`/api/timing-rules` です。すべて認証と組織所属確認が必要です。
+
+## 先行利用版UI
+
+ログイン後に組織を作成・選択し、`/dashboard`で今日・今週・今月の営業対象を確認できます。企業一覧は会社名・業種・備考の検索、業種絞り込み、会社名・業種・推奨日順に対応しています。企業詳細では企業・担当者の編集、営業結果とイベントの入力、推奨理由と時系列履歴を確認できます。スマホでは画面下部のナビゲーションから営業対象・企業検索・カレンダーへ移動できます。
+
+Web公開はVercel HobbyとSupabase Freeを優先します。本番環境変数、Auth URL、Migration、公開後の認可確認は[Web公開手順](docs/deployment.md)を参照してください。本番では`supabase db reset`を実行しません。

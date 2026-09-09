@@ -1,0 +1,1 @@
+export default function Loading() { return <main className="page-container" aria-live="polite"><div className="card animate-pulse p-6"><div className="h-4 w-24 rounded bg-stone-200" /><div className="mt-4 h-8 w-64 max-w-full rounded bg-stone-200" /><div className="mt-6 h-28 rounded bg-stone-100" /></div><span className="sr-only">読み込み中</span></main>; }
