@@ -19,6 +19,9 @@
 | Service Role漏洩 | `server-only`、公開env名禁止、CIスキャン |
 | PIIのAI・ログ流出 | contacts分離、分析allowlist、境界テスト、ログ禁止 |
 | 推奨根拠へのPII混入 | company/event/rule/history IDと公開URLのみをallowlist保存、contacts非参照 |
+| 収集URLによるSSRF | 公開HTTPSのみ、private/loopback host・資格情報・非標準portを拒否 |
+| 過剰クロール・規約違反 | robots.txt確認、source別間隔、host rate limiter、失敗時backoff |
+| 公開記事からAIへの不要情報送信 | EventAnalyzer入力をURL・題名・本文・公開日時に固定しcontactsを参照しない |
 | memberによるルール改ざん | scoring_rulesの変更RLSをowner/adminに限定、JSON設定をDB制約でも検証 |
 | organizationId書き換えによるIDOR | Server Component/Route Handlerでmembership確認し、queryもorganization/company/idで複合絞り込み |
 | 公開環境から本番秘密情報が露出 | browserはanon keyのみ、Service Roleはserver-onlyかつ現行UIでは未使用 |
@@ -37,6 +40,7 @@
 - [ ] 営業推奨のevidence・reasonへ担当者情報を含めない
 - [ ] 企業・担当者の表示/更新queryがorganizationIdで絞られている
 - [ ] Preview環境を本番Supabaseへ接続していない
+- [ ] 収集先が公開HTTPSで、robots.txtと再取得間隔を尊重している
 - [ ] エラーが内部情報を返さない
 - [ ] typecheck、lint、test、build、secret scan、npm auditが成功する
 

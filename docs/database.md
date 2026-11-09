@@ -9,6 +9,8 @@
 - `sales_opportunities`: 企業単位の商談
 - `scoring_rules`: 将来の決定論的ルール設定。Issue #2では計算しない
 - `sales_recommendations`: イベントとルールから算出した推奨日、説明、PII-freeな根拠、状態
+- `public_sources`: 企業ごとのRSS/HTML URL、再取得間隔、失敗回数、次回確認日時
+- `source_documents`: 取得記事のURL、公開/取得/確認日時、content hash。本文そのものはDBへ保存しない
 
 子テーブルの `company_id` と `organization_id` の一致はDBトリガーで保証し、組織をまたぐ関連付けを拒否する。全対象テーブルでRLSを有効にし、membership関数を使ったポリシーを設定する。`analysis_companies` は `security_invoker` viewでcompaniesのRLSを継承する。
 
@@ -34,3 +36,5 @@ Issue #3のMigrationは `20260904000000_sales_timing_engine.sql`。イベント�
 PR #8は未マージのため、Issue #3のMigrationをleadDays形式へ更新しています。旧PR版を適用した使い捨ての開発DBは `supabase db reset` で再構築してください（データは消去されます）。保持するデータがある環境ではresetせず、ルールのleadDays設定と推奨の再計算を含む移行を別途準備してください。
 
 event timing configurationはDB制約でも型と0〜3650日の範囲を検証する。ルールの閲覧は組織memberに許可し、追加・変更・削除はowner/adminだけに限定する。
+
+Issue #4のMigrationは `20260908000000_public_information_collection.sql`。収集テーブルは組織・企業整合トリガーとRLSを持つ。`source_documents`は組織・企業・URLで一意で、同じURLの再取得ではcontent hashと確認日時を更新する。`events.published_at`は記事公開日時、`events.occurred_on`はイベント日として区別する。
