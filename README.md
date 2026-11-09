@@ -24,6 +24,13 @@ AI連携・新規企業発見の前に、「AIが誤っても営業判断を汚�
 - **マージ**：ロンリーこばやしがレビューした後に行う。エージェントは自前でマージしない。
 - 停止指示が出たら、サブエージェントと背景処理も止め、明示的な再開指示まで進めない。
 
+### 開発ループ型の仕組み（追加）
+
+- ルールは `RULES.md`、仕様は `SPEC.md`、状態・指示は `PROGRESS.md`、固定指示文は `PROMPTS.md`。
+- 合否は `scripts/check.sh` の終了コードだけで判定する。検収は `scripts/review-packet.sh` の出力を Opus に渡す（1機能に各1回・差し戻し2回まで）。
+- `loop-base` タグは段階開始時に置く。アイは check と review-packet の実行、PR 作成をする。
+- この節は上記「担当と手順」の「検収：アイ」だけを上書きし、ロードマップ・CI・PR・マージの運用は変えない。
+
 ## 技術構成
 
 - Next.js App Router / TypeScript / Tailwind CSS / shadcn/ui

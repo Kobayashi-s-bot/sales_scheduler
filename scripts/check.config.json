@@ -1,0 +1,23 @@
+{
+  "base_tag": "loop-base",
+  "out_dir": "build/check",
+  "progress_file": "PROGRESS.md",
+  "instruction_section": "こばやしさんからの指示",
+  "gate_prefixes": ["scripts/", "RULES.md", "PROMPTS.md", "SPEC.md", ".gitignore", ".github/"],
+  "frozen_roots": ["tests", "supabase/tests"],
+  "ignored_scan_roots": ["src", "tests", "scripts", "supabase"],
+  "forbid_processes": [],
+  "product_paths": ["src", "supabase/migrations", "package.json"],
+  "steps": [
+    {"name": "typecheck", "cmd": ["npm", "run", "typecheck"], "quick": true},
+    {"name": "lint", "cmd": ["npm", "run", "lint"], "quick": true},
+    {"name": "test", "cmd": ["npm", "test"], "quick": true,
+     "count_regex": "Tests\\s+(\\d+) passed", "count_min": 118},
+    {"name": "check-secrets", "cmd": ["npm", "run", "check:secrets"], "quick": true},
+    {"name": "build", "cmd": ["npm", "run", "build"],
+     "env": {"NEXT_PUBLIC_SUPABASE_URL": "https://example.supabase.co", "NEXT_PUBLIC_SUPABASE_ANON_KEY": "ci-placeholder-anon-key"}}
+  ],
+  "advisory": [
+    {"name": "npm-audit", "cmd": ["npm", "audit", "--audit-level=high"]}
+  ]
+}
