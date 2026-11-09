@@ -25,6 +25,19 @@ describe("public source adapters", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects robots server errors but allows client errors", async () => {
+    const unavailable = vi.fn().mockResolvedValueOnce(new Response("", { status: 503 }));
+    await expect(new HtmlSourceAdapter(unavailable, new HostRateLimiter(0)).fetch({ ...config, type: "html" })).rejects.toThrow("robots.txt unavailable");
+    const allowed = vi.fn().mockResolvedValueOnce(new Response("", { status: 404 })).mockResolvedValueOnce(new Response("<title>ok</title>body", { status: 200 }));
+    await expect(new HtmlSourceAdapter(allowed, new HostRateLimiter(0)).fetch({ ...config, type: "html" })).resolves.toHaveLength(1);
+  });
+
+  it("rejects response bodies larger than 2 MiB", async () => {
+    const oversized = new Response("x".repeat(2 * 1024 * 1024 + 1), { status: 200 });
+    const fetcher = vi.fn().mockResolvedValueOnce(new Response("", { status: 404 })).mockResolvedValueOnce(oversized);
+    await expect(new HtmlSourceAdapter(fetcher, new HostRateLimiter(0)).fetch({ ...config, type: "html" })).rejects.toThrow("2 MiB");
+  });
+
   it("rate limits repeated requests to the same host", async () => {
     let now = 1_000;
     const limiter = new HostRateLimiter(1_000, () => now);
