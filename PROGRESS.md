@@ -5,7 +5,8 @@
 
 ## 現在地
 - **開発ループ導入 PR #16 もマージ済み（マージコミット 624171b、2026-11-09）。直前の機能は：PR #15（マージコミット 945bb94、2026-11-09）「Step A: 取得の安全性強化・候補レビューフロー」**。このPRで #13（公開情報収集基盤）と #14（先行利用版UI）も main に入った。それ以前：#7（基盤・DB・セキュリティ）、#8（営業タイミング推奨）。
-- 検証値：Vitest 21 ファイル 118 件・失敗0（ローカル実測）。CI（PR #15時点）：verify ジョブは typecheck/lint/test/check:secrets/build 成功、`npm audit --audit-level=high` のみ失敗（next/zod/vite 等の新規公表脆弱性。package.json は変更していない）。supabase ジョブ（supabase test db）は合格。依存更新は別PRで行う（未着手）。
+- A3 候補レビュー画面：実装・check 完全合格・Opus 検収 PASS（差し戻し1回）。**画面の実機確認（SPEC §6）は未。DB の変更は無い。**
+- 検証値：Vitest 23 ファイル 132 件・失敗0（ローカル実測。A3 の後）。PR #15 時点は 21 ファイル 118 件。CI（PR #15時点）：verify ジョブは typecheck/lint/test/check:secrets/build 成功、`npm audit --audit-level=high` のみ失敗（next/zod/vite 等の新規公表脆弱性。package.json は変更していない）。supabase ジョブ（supabase test db）は合格。依存更新は別PRで行う（未着手）。
 - git 基点：タグ loop-base が指すコミット（git rev-parse loop-base で確認）
 
 ## 本人の確認待ち（人の判断が要る・ループは触れない）
@@ -23,7 +24,7 @@
   5. 変更しない：DB・移行・RLS・既存 API・既存テスト・認可の境界。新規の純関数・コンポーネントは新規ファイルに置く。例外：`proxy.ts` の `protectedPage` に `/candidates` を1項目足す（SPEC R11）。
 
 ## 次の作業候補（未着手・本人の承認が出るまで着手しない）
-1. A3 候補レビュー画面
+1. （A3 候補レビュー画面は実装・検収済み。PR のレビューと、PC・スマホでの画面確認待ち）
 2. A4 期限到来取得元の定期実行
 3. 依存更新（npm audit、別PR）
 4. Issue #12 営業リマインド・通知（Codex 実装済・未 push、確認要）

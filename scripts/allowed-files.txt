@@ -1,8 +1,0 @@
-src/app/candidates/page.tsx
-src/lib/candidates/review.ts
-src/components/candidate-review.tsx
-src/components/candidate-actions.tsx
-tests/candidate-review.test.ts
-tests/candidate-review-ui.test.tsx
-src/components/app-shell.tsx
-proxy.ts
