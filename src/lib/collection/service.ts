@@ -33,7 +33,7 @@ export async function collectPublicSource(input: CollectionInput) {
       if (!changed) continue;
       const events = await input.analyzer.analyze(toAnalyzerInput(document));
       for (const event of events) {
-        const { error } = await input.supabase.from("events").upsert({ organization_id: input.organizationId, company_id: input.companyId, source_document_id: saved.id, event_type: event.eventType, occurred_on: event.eventDate, title: event.title, source_url: document.url, summary: event.summary, published_at: document.publishedAt, confidence: event.confidence }, { onConflict: "organization_id,company_id,event_type,occurred_on,title,source_url,source_document_id" });
+        const { error } = await input.supabase.from("event_candidates").upsert({ organization_id: input.organizationId, company_id: input.companyId, public_source_id: source.id, source_document_id: saved.id, event_type: event.eventType, occurred_on: event.eventDate, title: event.title, source_url: document.url, summary: event.summary, published_at: document.publishedAt, confidence: event.confidence }, { onConflict: "organization_id,company_id,event_type,occurred_on,title,source_url", ignoreDuplicates: true });
         if (error) throw error;
       }
       analyzed += 1;

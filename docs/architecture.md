@@ -13,3 +13,5 @@ Service Roleクライアントは `server-only` の独立モジュールに閉�
 営業タイミングエンジンは `src/lib/recommendations/engine.ts` の純粋な通常ロジックである。イベント日から設定済みleadDaysを減算し、直近営業活動がある場合はcooldownを確保する。結果は理由とPII-freeな根拠だけを `sales_recommendations` に保存する。イベントや履歴の登録、ルール変更時にサーバーで再計算し、AIや外部APIは呼び出さない。
 
 公開情報収集はsource adapter（RSS/HTML）、取得ポリシー、鮮度判定、EventAnalyzer、永続化serviceを分離する。日付・hash・再取得判定は通常ロジックで行う。現在のAnalyzer実装は無料の決定論的抽出であり、将来AIへ差し替える場合も`PublicDocument`のallowlist以外を渡さない。
+
+抽出結果は `events` ではなく `public.event_candidates` に候補（`status=pending`）として保存する。候補は採用されるまで営業推奨に影響しない。`/api/collection/run` は推奨を再計算しない。人が `/api/candidates/[candidateId]/accept` を呼ぶと、DB関数 `accept_event_candidate`（security invoker、RLS適用）が同一トランザクションで `events` を作成または再利用し、候補を `accepted` にする。その後に該当企業の推奨を再計算する。`reject` は候補を `rejected` にするだけで、推奨に影響しない。

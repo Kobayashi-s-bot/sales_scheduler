@@ -42,6 +42,9 @@
 - [ ] Preview環境を本番Supabaseへ接続していない
 - [ ] 収集先が公開HTTPSで、robots.txtと再取得間隔を尊重している
 - [ ] エラーが内部情報を返さない
+- [ ] event_candidatesが組織ごとのRLSを持ち、anonから参照できない
+- [ ] accept_event_candidateがsecurity invokerでRLSを迂回せず、execute権限がauthenticatedのみである
+- [ ] 候補にcontacts/PIIを含めず、候補が採用されるまで営業推奨へ反映されない
 - [ ] typecheck、lint、test、build、secret scan、npm auditが成功する
 
 Supabase Dashboardで本番URL、Auth provider、バックアップ、監査ログ保持、秘密鍵ローテーションを環境ごとに設定する。Service Roleを利用する管理ジョブは個別レビューし、最小権限のサーバー環境に限定する。

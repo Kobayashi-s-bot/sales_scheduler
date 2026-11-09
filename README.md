@@ -71,4 +71,4 @@ Web公開はVercel HobbyとSupabase Freeを優先します。本番環境変数�
 {"organizationId":"...","companyId":"...","sourceUrl":"https://example.com/feed.xml","sourceType":"rss","refreshIntervalMinutes":1440}
 ```
 
-`published_at`（記事公開日）とイベント日を別々に保持します。AI実装は`EventAnalyzer` interfaceの外側へ差し替え可能で、入力は公開記事のURL・題名・本文・公開日時だけです。contactsの担当者情報は参照しません。有料企業DBや有料APIには依存しません。
+`published_at`（記事公開日）とイベント日を別々に保持します。AI実装は`EventAnalyzer` interfaceの外側へ差し替え可能で、入力は公開記事のURL・題名・本文・公開日時だけです。contactsの担当者情報は参照しません。有料企業DBや有料APIには依存しません。抽出結果は `event_candidates` に候補として保存し、採用されるまでeventsや推奨には反映されません。

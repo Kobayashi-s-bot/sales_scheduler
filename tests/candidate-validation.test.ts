@@ -1,0 +1,4 @@
+import { describe, expect, it } from "vitest";
+import { candidateAcceptSchema, candidateListSchema, candidateRejectSchema } from "@/lib/validation/candidate";
+const org="00000000-0000-4000-8000-000000000001";
+describe("candidate validation",()=>{ it("accepts valid list filters",()=>expect(candidateListSchema.parse({organizationId:org,status:"pending"}).status).toBe("pending")); it("rejects invalid status and extra fields",()=>{expect(()=>candidateListSchema.parse({organizationId:org,status:"other"})).toThrow(); expect(()=>candidateRejectSchema.parse({organizationId:org,extra:true})).toThrow();}); it("validates optional acceptance overrides",()=>{expect(candidateAcceptSchema.parse({organizationId:org,occurredOn:"2026-09-10"}).occurredOn).toBe("2026-09-10"); expect(()=>candidateAcceptSchema.parse({organizationId:org,occurredOn:"bad"})).toThrow();}); });

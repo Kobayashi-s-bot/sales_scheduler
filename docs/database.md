@@ -11,6 +11,7 @@
 - `sales_recommendations`: イベントとルールから算出した推奨日、説明、PII-freeな根拠、状態
 - `public_sources`: 企業ごとのRSS/HTML URL、再取得間隔、失敗回数、次回確認日時
 - `source_documents`: 取得記事のURL、公開/取得/確認日時、content hash。本文そのものはDBへ保存しない
+- `event_candidates`: 抽出イベントをpending候補として保持し、memberが採用／却下する。採用時だけeventsへ反映され、採用されるまで推奨に影響しない
 
 子テーブルの `company_id` と `organization_id` の一致はDBトリガーで保証し、組織をまたぐ関連付けを拒否する。全対象テーブルでRLSを有効にし、membership関数を使ったポリシーを設定する。`analysis_companies` は `security_invoker` viewでcompaniesのRLSを継承する。
 
