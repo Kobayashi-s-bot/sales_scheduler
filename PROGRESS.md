@@ -35,6 +35,8 @@
 
 ## 進捗ログ（ループが追記。1回 1〜3 行、証跡パス付き）
 - 2026-11-09：ループ運用を導入（RULES/SPEC/PROGRESS/PROMPTS、scripts/、git タグ loop-base）。
+- 2026-11-09：A3 差し戻し1回目の対応（Opus 検収 FAIL：公開日の表示形式・A8 の無効な検査・A15 のテスト欠落・SPEC 外の sr-only リンク）。実装役の編集が1行コードの patch で `page.tsx` を壊した（read_file が長い行を切り詰めるため書込みガードが全文読み扱いにならない）。アイが `.new` に書いて置換し復旧、テストを追加（132件）。長い1行のファイルは今後、整形した複数行で作る。
+- 2026-11-09：A3 候補レビュー画面を実装。連鎖確認：既存UIテストのAppShell照合なし、snapshot・生成型・PWAなし、proxy保護対象の追加を確認。Next.js docs: node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/page.md・02-components/link.md・04-functions/use-router.md。
 
 ## 詰まりレポート（ループが停止したとき、ここに書く。行頭を `- STUCK:` にする。進捗はここに書かない）
 - なし
