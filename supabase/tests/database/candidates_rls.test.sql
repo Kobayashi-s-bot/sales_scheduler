@@ -28,7 +28,7 @@ select is((select count(*) from public.event_candidates), 0::bigint, 'other orga
 select throws_ok(format(
   'insert into public.event_candidates (organization_id, company_id, event_type, occurred_on, title, source_url) values (%L,%L,%L,%L,%L,%L)',
   :'candidate_organization_id', :'candidate_company_id', 'funding', '2026-01-03', 'IDOR', 'https://example.com/idor'
-), '42501', null, 'other organization cannot insert candidate');
+), '23514', 'company does not belong to organization', 'other organization cannot insert candidate');
 select throws_ok(format('select public.accept_event_candidate(%L)', :'candidate_candidate_id'), null, 'candidate not found', 'other organization cannot accept candidate');
 
 set local role anon;
