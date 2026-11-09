@@ -15,3 +15,10 @@ export async function requireOrganizationMembership(organizationId: string) {
   if (error || !data) throw new AccessDeniedError();
   return { supabase, user, membership: data };
 }
+
+export async function requireOrganizationContext(organizationId: string) {
+  const context = await requireOrganizationMembership(organizationId);
+  const { data, error } = await context.supabase.from("organizations").select("id,name").eq("id", organizationId).single();
+  if (error || !data) throw new AccessDeniedError();
+  return { ...context, organization: data };
+}

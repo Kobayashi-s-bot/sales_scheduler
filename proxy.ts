@@ -17,7 +17,9 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  const protectedPage = ["/dashboard", "/companies", "/calendar", "/organizations", "/settings"].some((path) => request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(`${path}/`));
+  if (protectedPage && !user) return NextResponse.redirect(new URL("/login", request.url));
   return response;
 }
 

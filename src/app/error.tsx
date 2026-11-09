@@ -1,0 +1,2 @@
+"use client";
+export default function ErrorPage({ retry }: { error: Error & { digest?: string }; retry: () => void }) { return <main className="page-container"><div className="card p-6"><p className="eyebrow">エラー</p><h1 className="mt-2 text-2xl font-bold">画面を読み込めませんでした</h1><p className="mt-2 text-stone-600">内部情報は表示していません。時間をおいて再試行してください。</p><button className="primary-button mt-5" onClick={retry}>再試行</button></div></main>; }

@@ -1,15 +1,10 @@
-import { Button } from "@/components/ui/button";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export default function Home() {
-  return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center gap-6 px-6">
-      <p className="text-sm font-semibold tracking-widest text-teal-700">SALES SCHEDULER</p>
-      <h1 className="text-4xl font-bold tracking-tight">営業判断を、安全なデータ基盤から。</h1>
-      <p className="max-w-2xl text-neutral-600">
-        Issue #2では認証、組織分離、データベースとセキュリティ境界を構築しています。
-        営業スコアリングと公開情報収集は後続Issueで実装します。
-      </p>
-      <div><Button disabled>認証後に利用できます</Button></div>
-    </main>
-  );
+export const dynamic = "force-dynamic";
+export default async function Home() {
+  const supabase = await createSupabaseServerClient(); const { data: { user } } = await supabase.auth.getUser();
+  if (user) redirect("/organizations");
+  return <main className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-5 py-16"><p className="eyebrow">SALES SCHEDULER</p><h1 className="mt-4 max-w-4xl text-4xl font-bold leading-tight sm:text-6xl">今日連絡すべき企業が、ひと目で分かる。</h1><p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600">企業・担当者・営業履歴を安全にまとめ、イベント前の最適な営業開始日をカレンダーへ整理します。</p><div className="mt-8"><Link className="primary-button inline-flex" href="/login">無料で利用を始める</Link></div></main>;
 }
