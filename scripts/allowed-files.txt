@@ -1,0 +1,6 @@
+src/app/api/cron/collect/route.ts
+src/lib/collection/scheduled.ts
+src/lib/collection/cron-auth.ts
+tests/collection-scheduled.test.ts
+tests/cron-auth.test.ts
+tests/cron-boundary.test.ts
