@@ -5,6 +5,7 @@
 
 ## 現在地
 - **開発ループ導入 PR #16 もマージ済み（マージコミット 624171b、2026-11-09）。直前の機能は：PR #15（マージコミット 945bb94、2026-11-09）「Step A: 取得の安全性強化・候補レビューフロー」**。このPRで #13（公開情報収集基盤）と #14（先行利用版UI）も main に入った。それ以前：#7（基盤・DB・セキュリティ）、#8（営業タイミング推奨）。
+- A4 毎日の自動取得（`/api/cron/collect`＋Vercel Cron）：実装・check 完全合格（154件）・Opus 検収 PASS（差し戻し2回）。**実機確認（Vercel／Supabase 上、SPEC F-A4 §7）は未。** 本人確認待ち：再試行で failure_count が1日に2回進むこと、不正 URL の行が毎日枠を1つ使うこと。
 - A3 候補レビュー画面：実装・check 完全合格・Opus 検収 PASS（差し戻し1回）。**画面の実機確認（SPEC §6）は未。DB の変更は無い。**
 - 検証値：Vitest 23 ファイル 132 件・失敗0（ローカル実測。A3 の後）。PR #15 時点は 21 ファイル 118 件。CI（PR #15時点）：verify ジョブは typecheck/lint/test/check:secrets/build 成功、`npm audit --audit-level=high` のみ失敗（next/zod/vite 等の新規公表脆弱性。package.json は変更していない）。supabase ジョブ（supabase test db）は合格。依存更新は別PRで行う（未着手）。
 - git 基点：タグ loop-base が指すコミット（git rev-parse loop-base で確認）
@@ -33,7 +34,7 @@
 
 ## 次の作業候補（未着手・本人の承認が出るまで着手しない）
 1. （A3 候補レビュー画面は実装・検収済み。PR のレビューと、PC・スマホでの画面確認待ち）
-2. A4 期限到来取得元の定期実行
+2. （A4 毎日の自動取得は実装・検収済み。PR のレビューと、Vercel／Supabase 上での実機確認待ち）
 3. 依存更新（npm audit、別PR）
 4. Issue #12 営業リマインド・通知（Codex 実装済・未 push、確認要）
 5. Issue #5 新規候補の Lookalike・#6 営業結果フィードバック
@@ -47,5 +48,10 @@
 - 2026-11-09：A3 差し戻し1回目の対応（Opus 検収 FAIL：公開日の表示形式・A8 の無効な検査・A15 のテスト欠落・SPEC 外の sr-only リンク）。実装役の編集が1行コードの patch で `page.tsx` を壊した（read_file が長い行を切り詰めるため書込みガードが全文読み扱いにならない）。アイが `.new` に書いて置換し復旧、テストを追加（132件）。長い1行のファイルは今後、整形した複数行で作る。
 - 2026-11-09：A3 候補レビュー画面を実装。連鎖確認：既存UIテストのAppShell照合なし、snapshot・生成型・PWAなし、proxy保護対象の追加を確認。Next.js docs: node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/page.md・02-components/link.md・04-functions/use-router.md。
 
+- 2026-11-10：A4 実装役の1回目はプロバイダ HTTP 400 で中断（原因未確定。直前に write_file の path 欠落が2回）。2回目で `collection-scheduled.test.ts` の偽 collect の誤りを修正しテストを拡充。アイが不足の AC10・AC11・AC12・AC15（時間不足で再試行しない）のテストを追記（151件）。2回目の実装役が「詰まりレポート」の見出し行を進捗の1行で上書きしたため、アイが見出しを復元した。
+- 2026-11-10：A4 Opus 検収1回目 FAIL（AC3・AC5・AC6 のテストが無効、不正な source_url の行で実行全体が 500 になる欠陥）。アイが `scheduled.ts` に `hostOf` を追加して修正し、回帰テストを追加（153件）。Next.js docs 確認：`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/maxDuration.md`（`export const maxDuration`）・`route.md`（GET）。ルートは request ヘッダを読むため動的。本番での 300 秒指定の有効性は未確認。
+- 2026-11-10：A4 Opus 検収2回目 FAIL（R12：再試行経路で同一ホストの間隔が守られない）。アイが `processRow` の finally でホスト時刻を記録するよう修正し、回帰テストを追加（154件）。差し戻し2回目の対応。
+
 ## 詰まりレポート（ループが停止したとき、ここに書く。行頭を `- STUCK:` にする。進捗はここに書かない）
+
 - なし
