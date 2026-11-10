@@ -46,13 +46,12 @@ export async function runScheduledCollection(input: ScheduledInput) {
   const rows = (data ?? []) as SourceRow[];
   const collect = input.collect ?? collectPublicSource;
   const hostTimes = new Map<string, number>();
-  const failedRows: SourceRow[] = [];
   let succeeded = 0;
   let failed = 0;
   let documents = 0;
   let analyzedDocuments = 0;
   let extractedEvents = 0;
-  let processedFirstPass = 0;
+  let processedRows = 0;
   let stoppedBy: "none" | "limit" | "time" = rows.length === MAX_SOURCES_PER_RUN ? "limit" : "none";
 
   const processRow = async (row: SourceRow) => {
@@ -99,30 +98,16 @@ export async function runScheduledCollection(input: ScheduledInput) {
       await processRow(row);
       succeeded += 1;
     } catch {
-      failedRows.push(row);
-    }
-    processedFirstPass += 1;
-  }
-
-  for (const row of failedRows) {
-    if (clock().getTime() - started + PER_SOURCE_WORST_MS > TIME_BUDGET_MS) {
-      stoppedBy = "time";
-      failed += 1;
-      continue;
-    }
-    try {
-      await processRow(row);
-      succeeded += 1;
-    } catch {
       failed += 1;
     }
+    processedRows += 1;
   }
 
   return {
     selected: rows.length,
     succeeded,
     failed,
-    skipped: rows.length - processedFirstPass,
+    skipped: rows.length - processedRows,
     documents,
     analyzedDocuments,
     extractedEvents,

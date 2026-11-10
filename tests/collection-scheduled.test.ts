@@ -59,12 +59,12 @@ describe("runScheduledCollection", () => {
     expect(result).toMatchObject({ selected: 3, extractedEvents: 9 });
   });
 
-  it("continues after a failure, retries once, and counts analyzer output", async () => {
+  it("continues after a failure without retrying it, and counts analyzer output", async () => {
     const deps = setup([row("one", null), row("two", null), row("three", null)]);
     deps.collect.mockRejectedValueOnce(new Error("first attempt"));
     const result = await run(deps);
-    expect(deps.collect).toHaveBeenCalledTimes(4);
-    expect(result).toMatchObject({ succeeded: 3, failed: 0, documents: 3, analyzedDocuments: 3, extractedEvents: 9 });
+    expect(deps.collect).toHaveBeenCalledTimes(3);
+    expect(result).toMatchObject({ succeeded: 2, failed: 1, documents: 2, analyzedDocuments: 2, extractedEvents: 6 });
   });
 
   it("stops for the time budget without collecting the next selected row", async () => {
@@ -94,11 +94,11 @@ describe("runScheduledCollection", () => {
     expect(sleeps[0]).toBeGreaterThanOrEqual(1100);
   });
 
-  it("counts a persistent retry failure only once", async () => {
+  it("collects a failing source exactly once per run (no same-day retry)", async () => {
     const deps = setup([row("one", null)]);
     deps.collect.mockRejectedValue(new Error("failure"));
     const result = await run(deps);
-    expect(deps.collect).toHaveBeenCalledTimes(2);
+    expect(deps.collect).toHaveBeenCalledTimes(1);
     expect(result).toMatchObject({ succeeded: 0, failed: 1 });
   });
 
@@ -122,24 +122,24 @@ describe("runScheduledCollection", () => {
     expect(result).toMatchObject({ succeeded: 1, failed: 1 });
   });
 
-  it("keeps the same-host interval on the retry pass even when every attempt fails (R12)", async () => {
+  it("keeps the same-host interval after a failed attempt", async () => {
     const deps = setup([row("a", null, "https://same.example/a"), row("b", null, "https://same.example/b")]);
     let clock = 0;
     const sleeps: number[] = [];
     deps.collect.mockImplementation(async () => { clock += 10; throw new Error("failure"); });
     const result = await run(deps, { now: () => new Date(clock), sleep: async (ms) => { sleeps.push(ms); clock += ms; } });
-    expect(deps.collect).toHaveBeenCalledTimes(4);
-    expect(sleeps.length).toBe(3);
-    for (const slept of sleeps) expect(slept).toBeGreaterThan(0);
+    expect(deps.collect).toHaveBeenCalledTimes(2);
+    expect(sleeps.length).toBe(1);
+    expect(sleeps[0]).toBeGreaterThanOrEqual(1100);
     expect(result).toMatchObject({ succeeded: 0, failed: 2 });
   });
 
-  it("does not retry a failure when the time budget is exhausted", async () => {
-    const deps = setup([row("one", null)]);
+  it("counts a failure as failed and stops before the next row when the budget is used up", async () => {
+    const deps = setup([row("one", null), row("two", null)]);
     let clock = 0;
     deps.collect.mockImplementation(async () => { clock = TIME_BUDGET_MS; throw new Error("failure"); });
     const result = await run(deps, { now: () => new Date(clock) });
     expect(deps.collect).toHaveBeenCalledTimes(1);
-    expect(result).toMatchObject({ succeeded: 0, failed: 1, stoppedBy: "time" });
+    expect(result).toMatchObject({ succeeded: 0, failed: 1, skipped: 1, stoppedBy: "time" });
   });
 });

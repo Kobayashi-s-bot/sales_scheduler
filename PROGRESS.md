@@ -6,6 +6,7 @@
 ## 現在地
 - **開発ループ導入 PR #16 もマージ済み（マージコミット 624171b、2026-11-09）。直前の機能は：PR #15（マージコミット 945bb94、2026-11-09）「Step A: 取得の安全性強化・候補レビューフロー」**。このPRで #13（公開情報収集基盤）と #14（先行利用版UI）も main に入った。それ以前：#7（基盤・DB・セキュリティ）、#8（営業タイミング推奨）。
 - A4 毎日の自動取得（`/api/cron/collect`＋Vercel Cron）：実装・check 完全合格（154件）・Opus 検収 PASS（差し戻し2回）。**実機確認（Vercel／Supabase 上、SPEC F-A4 §7）は未。** 本人確認待ち：再試行で failure_count が1日に2回進むこと、不正 URL の行が毎日枠を1つ使うこと。
+- 2026-11-10：A4 の仕様変更（本人指示）。同日の再試行を廃止（再試行は failure_count を1日に2回進めるため）。SPEC R12/AC15 を改訂、テスト 153件（count_min 153）。Opus 再検収 PASS。
 - A3 候補レビュー画面：実装・check 完全合格・Opus 検収 PASS（差し戻し1回）。**画面の実機確認（SPEC §6）は未。DB の変更は無い。**
 - 検証値：Vitest 23 ファイル 132 件・失敗0（ローカル実測。A3 の後）。PR #15 時点は 21 ファイル 118 件。CI（PR #15時点）：verify ジョブは typecheck/lint/test/check:secrets/build 成功、`npm audit --audit-level=high` のみ失敗（next/zod/vite 等の新規公表脆弱性。package.json は変更していない）。supabase ジョブ（supabase test db）は合格。依存更新は別PRで行う（未着手）。
 - git 基点：タグ loop-base が指すコミット（git rev-parse loop-base で確認）
