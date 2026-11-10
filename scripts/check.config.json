@@ -12,7 +12,7 @@
     {"name": "typecheck", "cmd": ["npm", "run", "typecheck"], "quick": true},
     {"name": "lint", "cmd": ["npm", "run", "lint"], "quick": true},
     {"name": "test", "cmd": ["npm", "test"], "quick": true,
-     "count_regex": "Tests\\s+(\\d+) passed", "count_min": 132},
+     "count_regex": "Tests\\s+(\\d+) passed", "count_min": 154},
     {"name": "check-secrets", "cmd": ["npm", "run", "check:secrets"], "quick": true},
     {"name": "build", "cmd": ["npm", "run", "build"],
      "env": {"NEXT_PUBLIC_SUPABASE_URL": "https://example.supabase.co", "NEXT_PUBLIC_SUPABASE_ANON_KEY": "ci-placeholder-anon-key"}}

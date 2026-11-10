@@ -293,3 +293,160 @@ A17. `proxy.ts` の本文が `"/candidates"` を含み、`protectedPage && !user
 推奨
 - §2 の grep による事前確認は、ループに入れる前に親（アイ）が機械的に実行して結果を確定させる。
 - 既存テストが AppShell の HTML を照合していると分かった場合、ループに既存テストの literal を書き写させてはいけない。その場合は R8 だけを親の手作業に切り出すか、SPEC を改訂して既存テストの変更範囲を明記してから再開する。
+
+
+### F-A4：毎日の自動取得（2026-11-09 計画。Opus）
+
+状態：確定（2026-11-09。§6 の確定事項を含む）。着手してよい。
+承認：Discord 1569540426833334363・1569544066843148460（Service Role 導入を含む）
+
+### 1. 要件（確定部分）
+
+R1. `public_sources` のうち `next_check_at` が null または現在時刻以前のものを、1日1回自動で取得する。
+
+- 取得・安全性・候補保存は既存の `collectPublicSource`、`RssSourceAdapter` / `HtmlSourceAdapter`、`HeuristicEventAnalyzer` をそのまま使う。
+- 書き込み先は既存経路と同じ `public_sources` / `source_documents` / `event_candidates` に限る。`events` と推奨には書かない。
+
+R2. 実行は Vercel Cron（確定）から専用エンドポイント `GET /api/cron/collect` を呼ぶ形とする。
+
+- エンドポイントは、環境変数 `CRON_SECRET` と一致する `Authorization: Bearer <CRON_SECRET>` が無ければ拒否する。
+- 秘密は未設定・短すぎ（32文字未満）の場合も拒否する（fail-closed）。
+- 比較は定数時間で行う（両辺を SHA-256 にしてから比較するなど。方法は実装役に任せる）。
+- 秘密値とリクエストヘッダはログ・レスポンスに出さない。
+
+R3. Service Role（`createSupabaseAdminClient`）はこのエンドポイントだけで使う。
+
+- 管理クライアントの生成は、認証が通った後に限る。拒否する経路では生成しない。
+- コードが触るテーブルは `public_sources`、`source_documents`、`event_candidates` の3つだけとする。`contacts` は参照しない。
+- 注意：Service Role は DB 上は全権限を持つ。この制限はコード上のものにすぎず、DB で強制されるものではない。
+
+R4. 上限と失敗の扱い。
+
+- 1回の実行で処理する件数の上限は `MAX_SOURCES_PER_RUN`、時間の予算は `TIME_BUDGET_MS` とする。どちらも export した定数にし、テストは定数を参照する（数字を直接書かない）。
+- 時間の判定：「経過時間 ＋ 1件あたりの最悪時間 `PER_SOURCE_WORST_MS`」が予算を超えるなら、新しい1件を始めない。
+- 処理順は `next_check_at` の昇順で、null を先頭にする。
+- 取得元は1件ずつ直列に処理する。並列にはしない。
+- 同じホストの連続処理：同一ホストの前の1件が終わってから 1,100ms 以上空けて次を始める。既存の `HostRateLimiter`（1秒）の例外が失敗として数えられ、バックオフが進んでしまうのを防ぐため。待ち時間は注入できる sleep と時計で行う。
+- 失敗は既存のバックオフ（`collectPublicSource` 内の処理）に任せる。実行役は1件ごとに例外を捕まえて失敗として数え、次の1件へ進む。
+- 上限・時間切れで処理しなかった取得元は変更しない（期限切れのまま翌日に回る）。
+- 取得元の `organization_id`・`company_id`・`source_url`・`source_type`・`refresh_interval_minutes` は DB の行の値をそのまま `collectPublicSource` に渡す。
+
+R5. レスポンスは PII なし。成功時は `{ data: { selected, succeeded, failed, skipped, documents, analyzedDocuments, extractedEvents, stoppedBy } }` だけを返す。
+
+- 数値以外の値は `stoppedBy`（`"none" | "limit" | "time"`）のみ。
+- 返さないもの：URL、各種 ID、組織名・会社名、エラーメッセージ。
+- `extractedEvents` は注入した解析器の出力件数を数える。重複で保存されなかった分も含むので「保存された候補数」ではない。
+- 全体の失敗（取得元一覧の取得失敗、環境変数の不足）は 500 と固定文言 `{"error":"Internal server error"}` を返す。
+- 環境変数の ZodError を既存の `safeErrorResponse` に渡すと 400 になり、変数名が漏れる。この経路では使わない。
+
+R6. 変更しないもの：既存の RLS、既存 API（`POST /api/collection/run` を含む）、既存テスト、`service.ts`、`adapters.ts`、`rate-limiter.ts`、`admin.ts`、`env.ts`、migration、`.github/`。DB 変更は無し。
+
+### 2. 連鎖して壊れる箇所の洗い出し（RULES §2-14）
+
+- 既存ファイルの変更は実装役には無い（`vercel.json` と `.env.example` は親が追加）。
+- migration は変更しないので、`tests/*migration-security.test.ts` には影響しない。
+- 新しく作る静的テスト（後述の AC9・AC10）は `service.ts` の本文を読む。将来 `service.ts` を変えると、このテストが意図どおり失敗する。これは仕様であり、連鎖ではない。
+- `server-only` を import するモジュールを Vitest で読み込めるかは、既存テストのやり方（alias・mock）に従う。
+  - Vitest 設定やゲートファイルの変更が必要になった場合は、停止して報告する（自分で変えない）。
+- `check:secrets`：テスト内のダミー秘密値（例：`test-cron-secret-` で始まる32文字以上の値）が検出に引っかかった場合は、停止して報告する。検出を回避する書き方はしない。
+- build：`CRON_SECRET` と `SUPABASE_SERVICE_ROLE_KEY` が無い状態でも build が通ること。環境変数の読み込みはリクエスト時に行い、モジュールの読み込み時には行わない。
+- Next.js について：ルートを動的にする指定、実行環境（Node）、実行時間の指定（maxDuration 相当）は、`node_modules/next/dist/docs/` を読んで、この版での正しい書き方に従う。既知の書き方を推測で書かない。
+
+### 3. 変更してよいファイル（allowed-files.txt）
+
+    src/app/api/cron/collect/route.ts          新規（薄く：認証→管理クライアント生成→実行役→応答）
+    src/lib/collection/scheduled.ts            新規（実行役。client・collect関数・adapter生成・analyzer・時計・sleep を注入可能に）
+    src/lib/collection/cron-auth.ts            新規（ヘッダ検証。env を引数か注入で受ける）
+    tests/collection-scheduled.test.ts         新規
+    tests/cron-auth.test.ts                    新規
+    tests/cron-boundary.test.ts                新規（静的境界テスト・ルートの拒否経路テスト）
+    （vercel.json と .env.example は親が追加する。実装役は触らない）
+    PROGRESS.md                                進捗欄のみ
+
+`.env.example` と `vercel.json` は親が変更する（実装役の範囲外）。
+
+### 4. 受け入れ基準（テストで判定）
+
+共通：SPEC §3 の1〜3（check.sh 終了コード0、凍結 SHA 不変、変更は範囲内）。
+
+認証（cron-auth.test / cron-boundary.test）
+
+- AC1. 次の場合は検証結果が「拒否」になる：ヘッダ無し、`Bearer` 以外の形式、値の不一致、`CRON_SECRET` 未設定、`CRON_SECRET` が32文字未満。一致した場合だけ「許可」になる。
+- AC2. 拒否経路のルート（`GET` を呼ぶ）は 401 と固定の本文を返す。さらに、`@/lib/supabase/admin` の `createSupabaseAdminClient` を mock して、呼ばれていないことを確認する。
+- AC3. 拒否時の本文と、`console` に記録された内容（spy で取得）に、秘密値と受け取ったヘッダ値が含まれない。
+
+実行役（collection-scheduled.test。偽の client・偽の collect・偽の時計と sleep を使う）
+
+- AC4. 期限切れの行だけが選ばれる。境界値（`next_check_at` が今と等しい、null、未来）を含める。順序は null が先、その後は古い順。選ばれる件数は `MAX_SOURCES_PER_RUN` 以下。
+- AC5. collect に渡す organizationId・companyId・config は各行の値と一致する。組織の異なる2行を入れて、取り違えないことを確認する。
+- AC6. 3件中2件目が例外を投げても、3件目は処理される。数は `failed=1`・`succeeded=2` になる。
+- AC7. 時計を進めると、予算の規則（R4）で新しい1件を始めず、`stoppedBy="time"` になる。件数上限に達した場合は `stoppedBy="limit"` になる。処理しなかった行に対して collect は呼ばれない。
+- AC8. 同じホストの2件では、1件目が終わってから2件目を始めるまでに、注入した sleep・時計の上で 1,100ms 以上空く。別ホストの場合は待たない。
+
+境界（cron-boundary.test）
+
+- AC9. 静的検査：新規3ファイルと `service.ts` の中の `.from("…")` が、`public_sources` / `source_documents` / `event_candidates` 以外を参照していない。また、これらのファイルに文字列 `contacts` が含まれない。
+- AC10. 静的検査：`src/app/` の中で `@/lib/supabase/admin` を import しているのは `src/app/api/cron/collect/route.ts` だけである。
+  - 着手時点で既に import しているファイルがあれば、許可リストに加える。そのリストは親が loop-base 時点の grep 結果で確定し、PROGRESS の指示欄に書く。
+
+応答（cron-boundary.test または collection-scheduled.test）
+
+- AC11. 成功時の本文のキーは R5 の集合と完全に一致し、値は数値または `stoppedBy` の列挙値だけである。
+  - 失敗させる collect に `https://x.example/a user@example.com` を含むエラーを投げさせ、その文字列と URL・ID が本文に出ないことを確認する。
+- AC12. 取得元一覧の取得に失敗した場合と、環境変数の解析に失敗した場合は、どちらも 500 と `{"error":"Internal server error"}` を返す。変数名は本文に出ない。
+
+その他
+
+- AC13. 既存テストは1件も変更していない。テスト件数は基準以上。
+- AC14. DB テストは CI で実行し、結果を PR に記載する（DB 変更は無いが、CI の結果は残す）。
+
+### 5. データ形式・DB・認可の変更
+
+- データ形式：変更なし。
+- DB スキーマ・migration：変更なし。
+- RLS：変更なし。
+- 認可経路：Service Role を使う経路が新しく1本増える（承認済み）。制限はコード上のものだけで、DB では強制されない。
+- 環境変数：`CRON_SECRET`（新規）と `SUPABASE_SERVICE_ROLE_KEY`（定義は既存、本番で使うのは初めて）を本人が Vercel に登録する。
+
+### 6. 確定事項（2026-11-09 本人承認。Discord 1569545858016481311ほか）
+- Q1：**Vercel Cron**。`vercel.json` の crons と `.env.example` の `CRON_SECRET` 行は親（アイ）が機械的に追加する（実装役は触らない）。
+- Q2：Service Role の制限は**コード上の制限と静的な境界テスト（AC9・AC10）で受け入れる**。DB 側での強制は運用実績ができた後に別 SPEC で検討する。
+- Q3（公式ドキュメントで確認）：Hobby の関数の最大実行時間は 300 秒。定数は `MAX_SOURCES_PER_RUN=100`、`TIME_BUDGET_MS=240000`、`PER_SOURCE_WORST_MS=20000`（既存アダプタのタイムアウトは1取得15秒）。ルートの最大実行時間指定は 300 秒（書き方は Next.js の docs に従う）。
+- Q4：日本時間6時（UTC `0 21 * * *`）。Hobby の起動は指定時刻から最大59分ずれる。毎朝の取得なので許容。
+- Q5：候補数は抽出件数（`extractedEvents`）で足りる。保存件数は返さない。
+- Q6：組織間の公平性は考えない。上限を超えた分は翌日に回る。足りなければ後で枠を調整する。
+- Q7：`.env.example` は存在する。`CRON_SECRET` の行は親が足す。
+- Q8：手動実行との衝突で失敗が1回数えられることは受け入れる。
+- **追加要件 R12（再試行しない・2026-11-10 本人指示で変更）**：失敗した取得元は同じ実行の中で再試行しない。失敗は `failed` に1回だけ数え、翌日以降の通常の予約（`failure_count` に基づくバックオフ）に任せる。理由：`collectPublicSource` は呼ぶたびに `failure_count` を加算するため、同日の再試行は失敗回数を1日に2回進め、バックオフが倍速で進むから。同一ホストの間隔規則は失敗した後も守る（失敗した試行の終了時刻も記録する）。
+- **追加の受け入れ基準 AC15（変更後）**：失敗した取得元は1回の実行で `collectPublicSource` が1回だけ呼ばれ、`failed` に1回だけ数えられる（再試行しない）／失敗した後も同一ホストの次の取得元との間隔が空く。
+
+### 7. 本人の画面・実機確認（PC の合格だけでは完了にしない）
+
+- [未] Vercel に `CRON_SECRET`（32文字以上のランダム値）と `SUPABASE_SERVICE_ROLE_KEY` を Production に登録したか。Preview への登録の要否も決めたか。
+- [未] Vercel の Cron 画面にジョブが1件表示され、有効になっているか。Cron は Production デプロイでのみ動く想定（要確認）。
+- [未] 秘密なしで本番 URL を叩くと 401 が返るか。
+- [未] 翌朝の実行ログで status 200 になり、本文が数値だけであること（URL・ID・メールアドレスが出ていないこと）。
+- [未] Supabase 上で、期限切れだった取得元の `next_check_at` が先に進んだか。失敗した取得元は `failure_count` が増え、バックオフが効いているか。
+- [未] 候補画面に新しい候補が `pending` で並び、events と推奨は変わっていないか。
+- [未] Vercel のログに秘密値・ヘッダが出ていないか。
+- [未] DB テストの CI 結果を PR で確認したか。
+
+### 8. 実装役がループで完遂できる見込み：中（高寄り）
+
+根拠（＋）
+
+- 既存ファイルの変更が実装役には無く、すべて新規ファイル。DB・migration・RLS は変えないため、連鎖して壊れる危険が小さい。
+- 実行役は依存をすべて注入できる形にしており、受け入れ基準は偽の client・時計・sleep と静的検査で機械的に判定できる。
+- 合否の判定に外部通信も DB も要らない。
+
+根拠（−）
+
+- Next.js の版が未知。ルートを動的にする指定・Node 実行環境・maxDuration の書き方は docs を読む必要があり、外すと build や本番の挙動がずれる。build が通っても、本番で静的扱いになっていないかは実機でしか分からない。
+- `server-only` と `vi.mock` の効き方は既存の設定に依存する。ゲート側の変更が必要になれば、ループでは止まる。
+- 定数（100件・240秒・300秒）は Hobby の公式上限に基づく確定値。
+
+推奨
+
+- 確定済み（§6）。実装役は §3 の新規ファイルだけを作る。
+- `vercel.json` の crons と AC10 の許可リストは、回答を受けて親（アイ）が機械的に確定させ、loop-base に含める。ループには `vercel.json` を触らせない（その場合は allowed-files から外す）。
+- 残りの新規ファイルとテストはループに乗せる。
