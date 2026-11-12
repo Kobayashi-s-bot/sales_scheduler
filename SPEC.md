@@ -466,8 +466,8 @@ R6. 変更しないもの：既存の RLS、既存 API（`POST /api/collection/r
   - source_url：https のみ、2048 字以下、SSRF 対策として既存の assertPublicHttpsUrl と同等の検証を通す。
   - source_type：rss か html。
 - 以下はサーバ側で決め、クライアントからは受け付けない。
-  - organization_id：requireOrganizationMembership の結果から入れる。body の値は使わない。
-  - company_id：URL パスの companyId を使い、同じ組織の会社であることをサーバで確認する。
+  - organization_id：書き込む値は requireOrganizationMembership が返した membership の値。body の organizationId は、認可の対象組織を指定するためにだけ使う（既存 API と同方式。2026-11-12 改訂）。スネークケースの organization_id など、他のキーは strict スキーマで拒否する。
+  - company_id：body の companyId を使い、membership の組織に属する会社であることをサーバで確認する（route にパス引数が無いため。2026-11-12 改訂）。
   - refresh_interval_minutes：DB 既定値 1440 に任せ、入力欄は設けない。
   - last_checked_at / next_check_at / failure_count / last_error：DB 既定値に任せ、insert に含めない。
 - 一覧に出す項目
@@ -508,6 +508,8 @@ R6. 変更しないもの：既存の RLS、既存 API（`POST /api/collection/r
   - public_sources を select し、パネルを差し込む。それ以外の既存表示は変えない。
 - 新規 tests/public-source-validation.test.ts
 - 新規 tests/public-sources-api.test.ts
+- 新規 src/lib/validation/public-source-type.ts（2026-11-12 追記。suggestSourceType の置き場。クライアントコンポーネントから読むため、Node 専用の import を含めない。collection/policy 経由で node:dns/promises が入ると build が失敗する）
+- 新規 tests/public-sources-panel.test.tsx（2026-11-12 追記。@testing-library は未導入で package.json を変更できないため、renderToStaticMarkup と文字列検査で書く）
 - PROGRESS.md（進捗欄のみ）
 - 条件付き：src/lib/validation/collection.ts
   - C3 で assertPublicHttpsUrl が export されていない場合に限り、export を付ける 1 箇所の変更だけを許す。ロジックは変えない。
@@ -595,7 +597,7 @@ API（tests/public-sources-api.test.ts。requireOrganizationMembership と supab
 
 #### 6-2. 本人の決定と確認結果（2026-11-12 アイ追記。Opus の下書きに対する確定事項）
 
-- **Q1 確定**：種別は利用者が選ぶ（案A）。**初期値は URL から自動入力**する（折衷案）。URL の末尾が `.xml`・`.rss`・`.atom`、またはパスに `/feed` か `/rss` を含めば `rss`、それ以外は `html`。選び直せる。推定関数は純粋関数 `suggestSourceType(url)` として `src/lib/validation/public-source.ts` に置く。**追加の受け入れ基準 AC16**：`suggestSourceType` が、`https://github.blog/feed/`→rss、`https://example.com/a.xml`→rss、`https://example.com/rss`→rss、`https://example.com/news`→html、解析できない文字列→html を返す。例外を投げない。
+- **Q1 確定**：種別は利用者が選ぶ（案A）。**初期値は URL から自動入力**する（折衷案）。URL の末尾が `.xml`・`.rss`・`.atom`、またはパスに `/feed` か `/rss` を含めば `rss`、それ以外は `html`。選び直せる。推定関数は純粋関数 `suggestSourceType(url)` として `src/lib/validation/public-source-type.ts` に置く（2026-11-12 改訂：当初は public-source.ts だったが、クライアントから読むと build が失敗するため分離）。判定は URL のパスで行い、末尾が `.xml`・`.rss`・`.atom`、またはパスの区切り単位が `feed`・`rss` なら rss。`/feeds/all` や `/rss.php` は html になる（選び直せるので許容）。**追加の受け入れ基準 AC16**：`suggestSourceType` が、`https://github.blog/feed/`→rss、`https://example.com/a.xml`→rss、`https://example.com/rss`→rss、`https://example.com/news`→html、解析できない文字列→html を返す。例外を投げない。
 - **Q2 確定**：削除は、取得元と連動して `source_documents` が消え、`event_candidates` は残る（`public_source_id` が null になる）。実測：`20260908…sql:23` は `on delete cascade`、`20260909…sql:7` は `on delete set null`。削除が FK で失敗することはない。**削除前にブラウザ標準の `confirm` で確認する**（部品の追加なし）。確認文に「この取得元から取り込んだ記事の記録は消えます。採用前の候補は残ります」を含める。**追加の受け入れ基準 AC17**：`public-sources-panel.tsx` が、削除の fetch を呼ぶ前に `confirm` を呼ぶ。`confirm` が false を返したら fetch を呼ばない（コンポーネントテスト、または文字列検査）。
 - **Q5 確定**：登録時は `assertPublicHttpsUrl`（同期・DNS 解決なし）だけを使い、`assertPublicHostResolves` は呼ばない。取得時の DNS 再検証は A1 で実装済みの取得処理が行う。
 - **Q3・Q4・Q6〜Q8**：Opus の前提どおり。URL は trim のみ、`last_error` のみ表示、取得間隔は 1440 固定、件数上限なし。
