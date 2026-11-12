@@ -26,4 +26,7 @@ Vercel HobbyとSupabase Freeを前提にする。どちらも利用上限・商�
 - Vercel Hobbyは非商用の個人利用に限られる（https://vercel.com/docs/limits/fair-use-guidelines）。勤務先の業務での利用は、商用に当たる可能性がある。業務データを入れる前に、規約上の扱いを決める。
 - Supabase Freeは、1週間ほどDBへのアクセスが少ないと自動で停止する（https://supabase.com/docs/guides/platform/free-project-pausing）。毎日のCronが読み取りを行うが、停止しない保証はない。停止後も1年以内ならDashboardから復元できる。
 - Supabase Freeは自動バックアップが無い。業務データを置く場合は、自分で定期的にバックアップを取る。
+- 取得元（`public_sources`）を登録する画面は、まだ無い。確認時は、Supabase の SQL Editor で `insert` した（`source_url` は https のみ、`source_type` は `rss` か `html`、`next_check_at` を空にすると次の実行で対象になる）。
+- `CRON_SECRET` は、生成したらパスワードマネージャに保存してから Vercel に貼る。Vercel の機密の値は、あとから表示できない。作り直した場合は再デプロイが必要。
+- SQL Editor の「Success. No rows returned」は、`insert ... select` では0行（失敗）を意味する。`returning` で行が返ったことを確認する。
 - 本番に実データを入れる前に、ダミーデータだけで5項目（上記1〜4と、別組織のデータが見えないこと）を確認する。
