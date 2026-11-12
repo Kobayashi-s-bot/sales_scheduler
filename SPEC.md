@@ -450,3 +450,199 @@ R6. 変更しないもの：既存の RLS、既存 API（`POST /api/collection/r
 - 確定済み（§6）。実装役は §3 の新規ファイルだけを作る。
 - `vercel.json` の crons と AC10 の許可リストは、回答を受けて親（アイ）が機械的に確定させ、loop-base に含める。ループには `vercel.json` を触らせない（その場合は allowed-files から外す）。
 - 残りの新規ファイルとテストはループに乗せる。
+
+### F-A4.5：取得元の登録
+
+#### 1. 要件
+
+- 企業詳細画面 /companies/[companyId] に「取得元」欄を追加する。
+- 欄の中身は、その会社の public_sources 行の一覧、追加フォーム、行ごとの削除ボタン。
+- 登録するだけで、取得はしない。
+  - 追加時に外部 URL へ通信しない。
+  - POST /api/collection/run や取得処理を呼ばない。
+- 取得は既存の毎朝の /api/cron/collect に任せる。
+  - 新規行は next_check_at を null のまま登録し、次回の cron で処理対象になるようにする。
+- 登録時の入力値は以下に限る。
+  - source_url：https のみ、2048 字以下、SSRF 対策として既存の assertPublicHttpsUrl と同等の検証を通す。
+  - source_type：rss か html。
+- 以下はサーバ側で決め、クライアントからは受け付けない。
+  - organization_id：requireOrganizationMembership の結果から入れる。body の値は使わない。
+  - company_id：URL パスの companyId を使い、同じ組織の会社であることをサーバで確認する。
+  - refresh_interval_minutes：DB 既定値 1440 に任せ、入力欄は設けない。
+  - last_checked_at / next_check_at / failure_count / last_error：DB 既定値に任せ、insert に含めない。
+- 一覧に出す項目
+  - source_url、source_type、last_checked_at（未取得なら「未取得」）、last_error（ある場合のみ）。
+  - 並びは created_at 昇順。
+- 削除は「id・organization_id・company_id がすべて一致する行」だけを対象にする。
+- 一覧の読み込みは A3 と同じ方針とする。page.tsx（Server Component）が requireOrganizationContext の supabase クライアントで public_sources を直接 select する。
+- 追加・削除は新しい API を fetch で呼ぶ。成功後は画面の一覧を更新する。
+  - 更新方法は data-forms.tsx の既存方式に合わせる。
+  - Next.js の API（router.refresh 等）を使う場合は、先に node_modules/next/dist/docs/ を読む。
+
+#### 2. 連鎖して直すファイルの洗い出し（実装前に親が機械的に確認する）
+
+想定では連鎖する変更は無い。ただし次の点は grep で確認し、結果を PROGRESS に記録すること。
+
+- C1：凍結テスト 30 本が、次のファイルを読んで中身を照合・スナップショットしていないか。
+  - 対象：src/app/companies/[companyId]/page.tsx、src/lib/validation/collection.ts
+  - 方法：tests/ を "companies/[companyId]"、"page.tsx"、"collection.ts"、"toMatchSnapshot"、"readFileSync" で検索する。
+  - 照合していた場合は、着手せず本人へ報告する。
+- C2：src/app/api/**/route.ts を列挙して「全 route が requireOrganizationMembership を使うこと」などを検査する凍結テストが無いか。
+  - あれば、新しい route もその検査を満たすように書く（テスト側は変えない）。
+- C3：assertPublicHttpsUrl が export されているか、同期か非同期か、DNS 解決をするか。
+  - DNS 解決（外部通信）をする場合はテストで名前解決が走るため、Q5 で判断を仰ぐ。
+- C4：生成された DB 型（例：src/types/database.ts）に public_sources が含まれているか。
+  - 含まれていなければ、型の再生成はせず停止して報告する（生成物は範囲外）。
+- C5：移行 SQL（supabase/migrations/）には触れない。
+  - tests/*migration-security.test.ts との照合が連鎖して壊れることは無い想定。
+
+#### 3. 変更してよいファイル（allowed-files.txt）
+
+- 新規 src/app/api/public-sources/route.ts
+  - POST（追加）と DELETE（削除）を置く。GET は作らない。一覧は page.tsx が直接読む。
+- 新規 src/lib/validation/public-source.ts
+  - 入力スキーマを置く。URL 検証は assertPublicHttpsUrl を import して再利用する。
+- 新規 src/components/public-sources-panel.tsx
+  - クライアントコンポーネント。一覧表示、追加フォーム、削除ボタン。
+- 変更 src/app/companies/[companyId]/page.tsx
+  - public_sources を select し、パネルを差し込む。それ以外の既存表示は変えない。
+- 新規 tests/public-source-validation.test.ts
+- 新規 tests/public-sources-api.test.ts
+- PROGRESS.md（進捗欄のみ）
+- 条件付き：src/lib/validation/collection.ts
+  - C3 で assertPublicHttpsUrl が export されていない場合に限り、export を付ける 1 箇所の変更だけを許す。ロジックは変えない。
+
+触らないファイル：data-forms.tsx、既存の API route、supabase/ 以下すべて、凍結テスト、scripts/。
+新規ファイルは LF で作る。
+
+#### 4. 受け入れ基準（Vitest で判定する。最終的な合否は scripts/check.sh の終了コード 0）
+
+入力の検証（tests/public-source-validation.test.ts）
+
+- AC1：次の入力を受理する。
+  - https://example.com/feed.xml と sourceType "rss"
+  - https://example.com/news と sourceType "html"
+- AC2：次の sourceUrl を拒否する。
+  - http://example.com/
+  - ftp://example.com/
+  - 空文字
+  - 2049 字の https URL
+  - https://127.0.0.1/、https://10.0.0.1/、https://192.168.1.1/、https://169.254.169.254/
+  - 既存 collectSourceInputSchema が拒否するものと同じ範囲で、https://localhost/ も拒否する。
+- AC3：次の入力を拒否する。
+  - sourceType が "rss"・"html" 以外の値（"atom"、空、未指定）
+  - companyId が UUID でない値
+- AC4：スキーマは organizationId / refreshIntervalMinutes / nextCheckAt / failureCount を受け付けない。
+  - 余分なキーは strict で拒否するか、strip で捨てる。どちらにするかは既存スキーマの方式に合わせる。
+  - いずれの場合も、出力オブジェクトにこれらのキーが含まれないことをテストする。
+
+API（tests/public-sources-api.test.ts。requireOrganizationMembership と supabase クライアントは既存 API テストと同じ方式でモックする）
+
+- AC5：未認証・非メンバーの POST と DELETE は、既存 API と同じエラーステータスを返し、DB 操作を呼ばない。
+- AC6：正常な POST
+  - public_sources への insert がちょうど 1 回呼ばれる。
+  - insert に渡すオブジェクトのキーは organization_id, company_id, source_url, source_type の 4 つだけ。
+  - organization_id はモックした membership の組織 ID と一致する。
+  - レスポンスは 201 で、作成した行を返す。
+- AC7：body に別の organization_id を入れても、insert される organization_id は membership の値である。
+- AC8：companyId が自組織の companies に存在しない場合は 404 を返し、insert を呼ばない。
+- AC9：insert が一意制約違反（code 23505）を返した場合は 409 を返す。
+- AC10：POST の処理中に globalThis.fetch が一度も呼ばれない（spy で検証）。
+  - 加えて route.ts の本文に "collection/run" の文字列が無く、取得処理モジュールも import していないことを、テキスト検査で確認する。
+- AC11：検証エラー（AC2・AC3 相当の入力）は 400 を返し、insert を呼ばない。
+- AC12：正常な DELETE
+  - delete に対して eq("id")、eq("organization_id", membership の組織)、eq("company_id") の 3 条件がすべて付く。
+- AC13：DELETE の結果
+  - 該当 0 行なら 404。
+  - id または companyId が UUID でなければ 400。
+  - 成功時は 200 または 204（既存 API の方式に合わせる）。
+
+全体
+
+- AC14：scripts/check.sh が終了コード 0。
+  - 内訳：typecheck、lint、test、check:secrets、build（ダミー env）、loop-base との差分が allowed-files.txt の範囲内であること。
+  - 凍結テスト 30 本は無変更で通る。
+
+#### 5. データ形式・DB・認可の変更の有無
+
+- DB スキーマの変更：なし。移行 SQL は追加・変更しない。
+- RLS の変更：なし。既存の public_sources_member_all に依存する。
+- 認可の追加：あり（アプリ層のみ）。
+  - 新しい API は requireOrganizationMembership を必須とする。
+  - 会社の所属をサーバ側で確認する（AC8）。
+- データ形式：既存の列に既存の制約どおりの値を入れるだけ。既存データは変更しない。
+- 外部通信：追加しない（AC10）。
+- 秘密情報：Service Role を使わない。利用者の権限（anon キーとセッション）のクライアントで操作する。contacts には触れない。
+- DB の検証：DB 移行が無いため、supabase test db の対象は変わらない。ただし実 DB の RLS 下での insert・delete はユニットテストではモックであり、未検証になる。本人の実機確認で検証する（第 6 節）。
+
+#### 6. 本人の画面・実機確認項目（本番 Vercel + Supabase、ダミーデータ）
+
+- V1：/companies/[companyId] に「取得元」欄が表示される。登録が 0 件のときは空の状態として表示される。
+- V2：https の RSS URL を種別 rss で追加すると、すぐ一覧に出る。
+  - Supabase のテーブルで以下を確認する。
+    - next_check_at が null であること。
+    - refresh_interval_minutes が 1440 であること。
+    - organization_id と company_id が正しいこと。
+- V3：同じ URL を再度追加すると、重複エラーの表示が出て、行は増えない。
+- V4：http:// の URL や https://192.168.1.1/ を入力するとエラーが表示され、登録されない。
+- V5：削除すると一覧から消え、DB からも消える。別の会社の取得元は残っている。
+- V6：翌朝の /api/cron/collect 実行後、追加した行の last_checked_at が埋まり、一覧の表示が更新される。
+  - これは cron 連携の確認で、A4.5 自体の合否とは切り分けて記録する。
+- V7：（可能なら）別組織のユーザーで同じ companyId の URL を開いても、取得元が見えず、追加・削除もできない。
+- V8：スマートフォン（PWA）で表示が崩れず、追加・削除の操作ができる。
+
+上記はすべて PC の check 合格とは別で、本人が確認するまで「未」とする。
+
+#### 6-2. 本人の決定と確認結果（2026-11-12 アイ追記。Opus の下書きに対する確定事項）
+
+- **Q1 確定**：種別は利用者が選ぶ（案A）。**初期値は URL から自動入力**する（折衷案）。URL の末尾が `.xml`・`.rss`・`.atom`、またはパスに `/feed` か `/rss` を含めば `rss`、それ以外は `html`。選び直せる。推定関数は純粋関数 `suggestSourceType(url)` として `src/lib/validation/public-source.ts` に置く。**追加の受け入れ基準 AC16**：`suggestSourceType` が、`https://github.blog/feed/`→rss、`https://example.com/a.xml`→rss、`https://example.com/rss`→rss、`https://example.com/news`→html、解析できない文字列→html を返す。例外を投げない。
+- **Q2 確定**：削除は、取得元と連動して `source_documents` が消え、`event_candidates` は残る（`public_source_id` が null になる）。実測：`20260908…sql:23` は `on delete cascade`、`20260909…sql:7` は `on delete set null`。削除が FK で失敗することはない。**削除前にブラウザ標準の `confirm` で確認する**（部品の追加なし）。確認文に「この取得元から取り込んだ記事の記録は消えます。採用前の候補は残ります」を含める。**追加の受け入れ基準 AC17**：`public-sources-panel.tsx` が、削除の fetch を呼ぶ前に `confirm` を呼ぶ。`confirm` が false を返したら fetch を呼ばない（コンポーネントテスト、または文字列検査）。
+- **Q5 確定**：登録時は `assertPublicHttpsUrl`（同期・DNS 解決なし）だけを使い、`assertPublicHostResolves` は呼ばない。取得時の DNS 再検証は A1 で実装済みの取得処理が行う。
+- **Q3・Q4・Q6〜Q8**：Opus の前提どおり。URL は trim のみ、`last_error` のみ表示、取得間隔は 1440 固定、件数上限なし。
+- **C1〜C4 の実測結果（親が実施済み）**：C1：凍結テスト `early-access-security.test.ts` は `src/app/companies/[companyId]/page.tsx` に文字列 `requireOrganizationContext` が含まれることだけを検査している。**この文字列を page.tsx から消さないこと**。他に照合・スナップショットなし。C2：`app/api` を列挙する凍結テストなし（`cron-boundary.test.ts` は `supabase/admin` の import 元が `cron/collect/route.ts` だけであることを検査する。新しい route で `supabase/admin` を import してはならない）。C3：`assertPublicHttpsUrl` は `src/lib/collection/policy.ts` で export 済み、同期。**`validation/collection.ts` の変更は不要**（allowed から外す）。C4：DB 型定義ファイルは存在しない。
+- 新しい API の認可は、既存の `requireOrganizationMembership` を使う。`supabase/admin` は import しない（上記 C2 の検査に当たる）。
+- 実装役への注意：追加・削除後の画面更新は `data-forms.tsx` の既存方式（`useRouter`）に合わせる。Next.js の API を使う前に `node_modules/next/dist/docs/` を読み、読んだパスを PROGRESS に記録する。
+
+#### 7. 要確認（推測せず、本人の判断を待つ）【解消済み。上記 6-2 を参照】
+
+- Q1：source_type の決め方。
+  - 案 A：利用者がセレクトで選ぶ（初期値は html）。
+  - 案 B：URL から推定する。
+  - 本 SPEC の AC は案 A を前提にしている。案 B にする場合は推定規則（拡張子 .xml/.rss、パスに /feed を含む等）の決定が必要で、AC1・AC3 を改める。
+- Q2：取得元を削除したとき、その取得元から集めたデータ（public_sources を参照するテーブルがあるか）をどう扱うか。
+  - FK が cascade なら収集データも消え、restrict なら削除が失敗する。
+  - 実装前に移行 SQL で FK を確認し、望む挙動を本人が決める。
+  - restrict で失敗する場合のエラー表示（409 にするか等）も決める。
+- Q3：削除前に確認ダイアログを出すか。出す場合、shadcn/ui の AlertDialog が導入済みでないと、コンポーネントの追加（範囲外のファイル）が必要になる。
+- Q4：URL の正規化（前後の空白除去以外に、末尾スラッシュや大文字小文字を同一視するか）。
+  - 本 SPEC は「trim のみ、ほかは正規化しない」を前提にしている。
+- Q5：assertPublicHttpsUrl が DNS 解決をする場合、登録時にも実行してよいか（外部通信にあたる、RULES §2-6）。
+  - 実行しない場合は「登録時は文字列とリテラル IP の検査のみ、取得時に cron 側が再検証する」とする。cron 側が再検証していることも確認する。
+- Q6：一覧に last_error と failure_count を表示するか（本 SPEC は last_error のみ表示)。
+- Q7：refresh_interval_minutes を将来画面から変えられるようにするか。本 SPEC では対象外（既定 1440 固定）。
+- Q8：1 社あたりの登録件数に上限を設けるか。本 SPEC では設けない。
+
+Q1・Q2・Q5 は実装前に解消が必要。Q3・Q4・Q6〜Q8 は本 SPEC の前提どおりで進め、本人の判断で後から変えてよい。
+
+#### 8. 実装役がループで完遂できる見込み
+
+見込み：中。Q1・Q2・Q5 と C1〜C4 が解消されていれば高。
+
+根拠（高い要因）
+
+- 変更は新規ファイル 5 本と、既存ファイル 1 本（page.tsx）への追記で、小さく局所的。
+- 既存の API route、データ入力フォーム、requireOrganizationMembership、assertPublicHttpsUrl という手本と部品がそろっている。
+- DB と RLS の変更が無い。
+- 受け入れ基準は、モックへの呼び出し引数とステータスコードで機械的に判定できる。
+
+根拠（下げる要因）
+
+- Next.js が既知の版と異なる。route handler の params の型、router.refresh などの API の違いで typecheck や build に何度も失敗する可能性がある。
+- supabase クライアントのチェーン（from().insert().select()、delete().eq().eq().eq()）のモックが既存テストに無い場合、安いモデルは試行錯誤しやすい。
+- assertPublicHttpsUrl が非同期で DNS を使う場合（C3・Q5）、テストが外部通信に依存して不安定になる。
+- 画面の正しさはテストで判定できず、実機確認（第 6 節）に依存する。
+
+推奨
+
+- C1〜C4 の grep 確認と、Q2 の FK 確認は、ループに渡さず親（アイ）が機械的に行い、結果を PROGRESS の指示欄に追記してから起動する。
+- C1 で照合テストが見つかった場合や、C4 で型の再生成が必要な場合は、ループに乗せない。本人判断で SPEC を改訂する。
