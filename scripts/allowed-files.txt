@@ -5,3 +5,4 @@ src/app/companies/[companyId]/page.tsx
 tests/public-source-validation.test.ts
 tests/public-sources-api.test.ts
 tests/public-sources-panel.test.tsx
+src/lib/validation/public-source-type.ts
